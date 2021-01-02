@@ -423,6 +423,13 @@ static void send_line_finish(spi_device_handle_t spi)
         //We could inspect rtrans now if we received any info back. The LCD is treated as write-only, though.
     }
 }
+static void paper_trans_finish(spi_device_handle_t spi)
+{
+    spi_transaction_t *rtrans;
+    esp_err_t ret;
+    ret=spi_device_get_trans_result(spi, &rtrans, portMAX_DELAY);
+    //We could inspect rtrans now if we received any info back. The LCD is treated as write-only, though.
+}
 
 static void paper_send_data(spi_device_handle_t spi, uint16_t *linedata, size_t len) {
     esp_err_t ret;
@@ -486,7 +493,75 @@ static void display_pretty_colors(spi_device_handle_t spi)
         }
     }
 }
+typedef struct {
+  uint16_t  	 width;
+  uint16_t  	 height;
+  uint16_t  	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */ 
+  uint8_t  	*comment;
+  uint16_t 	 pixel_data[0];
+} gimpimage_t;
 
+/* RGB 565 */
+void draw_image(gimpimage_t *srcimg, uint8_t *black, uint8_t *red,int h, int w, int x_offset, int y_offset) {
+	int x,y;
+	int uk=2;
+	int r_c=2;
+	//0x f8e1 ffde
+	int b_c=2;
+	int w_c=2;
+	for (y=0;y<srcimg->height;y++) 
+		for (x=0;x<srcimg->width;x++) {
+			int color = 0;
+			uint16_t srcoffset = (x) + (y*srcimg->width);
+			uint16_t rgb = srcimg->pixel_data[srcoffset];
+			//rgb = (rgb >> 8) | ((rgb << 8) & 0xff00);
+			uint8_t r = (rgb & 0xf800) >> 11;
+			uint8_t g = (rgb & 0x7e0) >> 6; /* One extra to make the 5 bits, too */
+			uint8_t b = (rgb & 0x1f);
+
+			if ((y<3) && (x<3))
+				printf("SRC %d,%d RGB 0x%x is (%d %d %d) offset %d\n", x,y,rgb,r,g,b,srcoffset);
+			if ((r > 29) && (g > 29) && (b > 29)) {
+				if (w_c)  { printf("%d,%d RGB 0x%x is (%d %d %d) WHITE\n", x,y,rgb,r,g,b); w_c--;}
+				color = 0;
+			}
+			else if ((r < 4) && (g < 4) && (b < 4)) {
+				if (b_c)  { printf("%d,%d RGB 0x%x is (%d %d %d) BLAC\n", x,y,rgb,r,g,b); b_c--;}
+				color = 1;
+			}  
+			else if (r  > 18) {
+				if (r_c)  { printf("%d,%d RGB 0x%x is (%d %d %d) RED\n", x,y,rgb,r,g,b); r_c--;}
+				color = 2;
+			} 
+			else {
+				if (uk)  { printf("%d,%d RGB 0x%x is (%d %d %d) UK\n", x,y,rgb,r,g,b); uk--;}
+			}
+			
+
+			int bytespercol = 128/8;
+			int byteoffset = (x*bytespercol) + (y/8);
+			uint8_t shift = 7-(y%8);
+			if ((y<3) && (x<3))
+				printf("DEST byteoffset %d shift %d\n",byteoffset, shift);
+			if (color == 0) {
+				/* white */
+				if (red) red[byteoffset] |= (1<<shift);
+				if (black) black[byteoffset] |= (1<<shift);
+			} 
+			if (color == 1) {
+				/* BLACK */
+				//if (red) red[byteoffset] |= (1<<shift);
+				if (black) black[byteoffset] &= ~(1<<shift);
+			} 
+			if (color == 2) {
+				/* RED */
+				//if (black) black[byteoffset] &= (1<<shift);
+				if (red) red[byteoffset] &= ~(1<<shift);
+			} 
+	}
+}
+
+gimpimage_t *mil_logo;
 void app_main(void)
 {
     esp_err_t ret;
@@ -532,6 +607,8 @@ void app_main(void)
 		int i;
 #define bufsz ((296*128)/8)
     void *db=heap_caps_malloc(bufsz, MALLOC_CAP_DMA);
+
+#if 0
 		memset(db,0xff,bufsz);
 		memset(db,0x0,bufsz/4);
 		lcd_cmd(spi, 0x10); /* Send BW data */
@@ -542,11 +619,22 @@ void app_main(void)
 		memset(db+(bufsz/2),0,bufsz/4);
 		paper_send_data(spi, db,bufsz);
 		printf("Buffers sent\n");
-    //vTaskDelay(10000 / portTICK_RATE_MS);
 		lcd_cmd(spi, 0x12); /* Update Display */
-		printf("Refresh Display\n");
-		while(1) {
-            vTaskDelay(1000 / portTICK_RATE_MS);
-						printf ("DELAY\n");
-		}
+		printf("Refreshed Display\n");
+#endif
+
+		/* Do Black */
+		memset(db,0xff,bufsz);
+		draw_image((gimpimage_t *) &mil_logo, db, 0L,296, 128, 0, 0);
+		lcd_cmd(spi, 0x10); /* Send BW data */
+		paper_send_data(spi, db,bufsz);
+		paper_trans_finish(spi); // Since we're re-using the buffer for red and black to save memory - wait for it to complete
+
+		/* Do Red */
+		memset(db,0xff,bufsz);
+		draw_image((gimpimage_t *) &mil_logo, 0L, db,296, 128, 0, 0);
+		lcd_cmd(spi, 0x13); /* Draw Red Data data */
+		paper_send_data(spi, db,bufsz);
+
+		lcd_cmd(spi, 0x12); /* Update Display data */
 }

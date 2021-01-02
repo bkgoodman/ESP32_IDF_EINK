@@ -1,4 +1,5 @@
-set(srcs "pretty_effect.c"
+set(srcs 
+		"MiLcropped.c"
     "spi_master_example_main.c"
     )
 
@@ -9,5 +10,5 @@ endif()
 
 idf_component_register(SRCS ${srcs}
                     INCLUDE_DIRS "."
-                    EMBED_FILES image.jpg)
+                    )
 
