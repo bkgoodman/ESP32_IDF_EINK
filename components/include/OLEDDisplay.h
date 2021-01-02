@@ -337,6 +337,8 @@ static	inline void OLEDDisplay_setContrast(OLEDDisplay_t *oled, uint8_t contrast
 
 	void OLEDDisplay_drawInternal(OLEDDisplay_t *oled, int16_t xMove, int16_t yMove, int16_t width, int16_t height, const uint8_t *data, uint16_t offset, uint16_t bytesInData);
 
+void inline OLEDDisplay_drawPaperInternal(OLEDDisplay_t *oled, int16_t xMove, int16_t yMove, int16_t width, int16_t height, const uint8_t *data, uint16_t offset, uint16_t bytesInData);
+
 	void OLEDDisplay_drawStringInternal(OLEDDisplay_t *oled, int16_t xMove, int16_t yMove, char* text, uint16_t textLength, uint16_t textWidth);
 	void OLEDDisplay_display(OLEDDisplay_t *oled);
 

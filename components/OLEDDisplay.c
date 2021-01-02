@@ -315,11 +315,12 @@ void OLEDDisplay_fillCircle(OLEDDisplay_t *oled, int16_t x0, int16_t y0, int16_t
 
 }
 
+
 void OLEDDisplay_drawHorizontalLine(OLEDDisplay_t *oled, int16_t x, int16_t y, int16_t length) {
-  if (y < 0 || y >= oled->height) { return; }
+  if (y < 0 || y >= oled->width) return;
 
   if (x < 0) {
-    length += x;
+    length -= x;
     x = 0;
   }
 
@@ -327,32 +328,17 @@ void OLEDDisplay_drawHorizontalLine(OLEDDisplay_t *oled, int16_t x, int16_t y, i
     length = (oled->width - x);
   }
 
-  if (length <= 0) { return; }
+  if (length <= 0) return;
 
-  uint8_t * bufferPtr = oled->buffer;
-  bufferPtr += (y >> 3) * oled->width;
-  bufferPtr += x;
-
-  uint8_t drawBit = 1 << (y & 7);
-
-  switch (oled->color) {
-    case WHITE:   while (length--) {
-        *bufferPtr++ |= drawBit;
-      }; break;
-    case BLACK:   drawBit = ~drawBit;   while (length--) {
-        *bufferPtr++ &= drawBit;
-      }; break;
-    case INVERSE: while (length--) {
-        *bufferPtr++ ^= drawBit;
-      }; break;
-  }
+	while(length--) {
+		OLEDDisplay_setPixel(oled,x+length,y);
+	}
 }
-
 void OLEDDisplay_drawVerticalLine(OLEDDisplay_t *oled, int16_t x, int16_t y, int16_t length) {
   if (x < 0 || x >= oled->width) return;
 
   if (y < 0) {
-    length += y;
+    length -= y;
     y = 0;
   }
 
@@ -362,63 +348,9 @@ void OLEDDisplay_drawVerticalLine(OLEDDisplay_t *oled, int16_t x, int16_t y, int
 
   if (length <= 0) return;
 
-
-  uint8_t yOffset = y & 7;
-  uint8_t drawBit;
-  uint8_t *bufferPtr = oled->buffer;
-
-  bufferPtr += (y >> 3) * oled->width;
-  bufferPtr += x;
-
-  if (yOffset) {
-    yOffset = 8 - yOffset;
-    drawBit = ~(0xFF >> (yOffset));
-
-    if (length < yOffset) {
-      drawBit &= (0xFF >> (yOffset - length));
-    }
-
-    switch (oled->color) {
-      case WHITE:   *bufferPtr |=  drawBit; break;
-      case BLACK:   *bufferPtr &= ~drawBit; break;
-      case INVERSE: *bufferPtr ^=  drawBit; break;
-    }
-
-    if (length < yOffset) return;
-
-    length -= yOffset;
-    bufferPtr += oled->width;
-  }
-
-  if (length >= 8) {
-    switch (oled->color) {
-      case WHITE:
-      case BLACK:
-        drawBit = (oled->color == WHITE) ? 0xFF : 0x00;
-        do {
-          *bufferPtr = drawBit;
-          bufferPtr += oled->width;
-          length -= 8;
-        } while (length >= 8);
-        break;
-      case INVERSE:
-        do {
-          *bufferPtr = ~(*bufferPtr);
-          bufferPtr += oled->width;
-          length -= 8;
-        } while (length >= 8);
-        break;
-    }
-  }
-
-  if (length > 0) {
-    drawBit = (1 << (length & 7)) - 1;
-    switch (oled->color) {
-      case WHITE:   *bufferPtr |=  drawBit; break;
-      case BLACK:   *bufferPtr &= ~drawBit; break;
-      case INVERSE: *bufferPtr ^=  drawBit; break;
-    }
-  }
+	while(length--) {
+		OLEDDisplay_setPixel(oled,x,y+length);
+	}
 }
 
 void OLEDDisplay_drawFastImage(OLEDDisplay_t *oled, int16_t xMove, int16_t yMove, int16_t width, int16_t height, const uint8_t *image) {
@@ -504,7 +436,7 @@ void OLEDDisplay_drawStringInternal(OLEDDisplay_t *oled, int16_t xMove, int16_t 
       if (!(msbJumpToChar == 255 && lsbJumpToChar == 255)) {
         // Get the position of the char data
         uint16_t charDataPosition = JUMPTABLE_START + sizeOfJumpTable + ((msbJumpToChar << 8) + lsbJumpToChar);
-        OLEDDisplay_drawInternal(oled, xPos, yPos, currentCharWidth, textHeight, oled->fontData, charDataPosition, charByteSize);
+        OLEDDisplay_drawPaperInternal(oled, xPos, yPos, currentCharWidth, textHeight, oled->fontData, charDataPosition, charByteSize);
       }
 
       cursorX += currentCharWidth;
@@ -513,13 +445,11 @@ void OLEDDisplay_drawStringInternal(OLEDDisplay_t *oled, int16_t xMove, int16_t 
 }
 
 void OLEDDisplay_drawString(OLEDDisplay_t *oled, int16_t xMove, int16_t yMove, char * strUser) {
-	printf("DEBUG MARK %d\n",__LINE__);
   uint16_t lineHeight = pgm_read_byte(oled->fontData + HEIGHT_POS);
 
   // char* text must be freed!
   char* text = strUser; //utf8 to ASCII MUST FREE BELOW IF USED
 
-	printf("DEBUG MARK %d\n",__LINE__);
   uint16_t yOffset = 0;
   // If the string should be centered vertically too
   // we need to now how heigh the string is.
@@ -532,18 +462,14 @@ void OLEDDisplay_drawString(OLEDDisplay_t *oled, int16_t xMove, int16_t yMove, c
     // Calculate center
     yOffset = (lb * lineHeight) / 2;
   }
-	printf("DEBUG MARK %d\n",__LINE__);
 
   uint16_t line = 0;
   char* textPart = strtok(text,"\n");
-	printf("DEBUG MARK %d\n",__LINE__);
   while (textPart != NULL) {
     uint16_t length = strlen(textPart);
-	printf("DEBUG MARK %d\n",__LINE__);
     OLEDDisplay_drawStringInternal(oled, xMove, yMove - yOffset + (line++) * lineHeight, textPart, length, OLEDDisplay_getStringWidthLen(oled, textPart, length));
     textPart = strtok(NULL, "\n");
   }
-	printf("DEBUG MARK %d\n",__LINE__);
   // NEED FOR UTF8 if used free(text);
 }
 
@@ -774,6 +700,110 @@ void OLEDDisplay_setGeometry(OLEDDisplay_t *oled, OLEDDISPLAY_GEOMETRY g, uint16
   oled->displayBufferSize = width * oled->height / 8;
 }
 
+void inline OLEDDisplay_drawPaperInternal(OLEDDisplay_t *oled, int16_t xMove, int16_t yMove, int16_t width, int16_t height, const uint8_t *data, uint16_t offset, uint16_t bytesInData) {
+	int x,y;
+  if (width < 0 || height < 0) return;
+  if (yMove + height < 0 || yMove > oled->height)  return;
+  if (xMove + width  < 0 || xMove > oled->width)   return;
+
+  uint8_t  rasterHeight = 1 + ((height - 1) >> 3); // fast ceil(height / 8.0)
+  int8_t   yOffset      = yMove & 7;
+
+	bytesInData = bytesInData == 0 ? width * rasterHeight : bytesInData;
+	//printf("  H %d W %d RH %d\n",height,width,rasterHeight);
+
+  for (uint16_t i = 0; i < bytesInData; i++) {
+		uint8_t x,y,yByte,bit;
+		x = i/rasterHeight;
+		yByte = i % rasterHeight;
+		for (bit=0;bit<8;bit++) {
+			y = (yByte * 8) + bit;
+			uint8_t currentByte = pgm_read_byte(data + offset + i);
+			//printf("    %d,%d Offset %d yByte %d Bit %d Data 0x%x",x,y,i,yByte,bit,currentByte);
+			
+				if (currentByte & (1<<bit)) {
+					OLEDDisplay_setPixel(oled,xMove+x,yMove+y);
+					//printf(" ON\n");
+				}
+				 //else printf(" off\n");
+		}
+	}
+	return;
+	printf("  H %d W %d RH %d\n",height,width,rasterHeight);
+	for (y=0;y<height;y++)
+		for (x=0;x<width;x++) {
+			uint8_t byteoffset = (x * rasterHeight) + (y / (rasterHeight*2));
+			if (byteoffset < bytesInData) {
+				uint8_t ybit = y % 8;
+				uint8_t currentByte = pgm_read_byte(data + offset + byteoffset);
+				printf("    %x,%x - Byteoffset %d ybit %d data 0x%x",x,y,byteoffset, ybit, currentByte);
+				if (currentByte & (1<<ybit)) {
+					OLEDDisplay_setPixel(oled,xMove+x,yMove+y);
+					printf(" ON\n");
+				}
+				 else printf(" off\n");
+			}
+	}
+
+	return;
+
+
+  int16_t initYMove   = yMove;
+  int8_t  initYOffset = yOffset;
+
+
+  for (uint16_t i = 0; i < bytesInData; i++) {
+
+    // Reset if next horizontal drawing phase is started.
+    if ( i % rasterHeight == 0) {
+      yMove   = initYMove;
+      yOffset = initYOffset;
+    }
+
+    uint8_t currentByte = pgm_read_byte(data + offset + i);
+
+    int16_t xPos = xMove + (i / rasterHeight);
+    int16_t yPos = ((yMove >> 3) + (i % rasterHeight)) * oled->width;
+
+//    int16_t yScreenPos = yMove + yOffset;
+    int16_t dataPos    = xPos  + yPos;
+
+    if (dataPos >=  0  && dataPos < oled->displayBufferSize &&
+        xPos    >=  0  && xPos    < oled->width ) {
+
+      if (yOffset >= 0) {
+        switch (oled->color) {
+          case WHITE:   oled->buffer[dataPos] |= currentByte << yOffset; break;
+          case BLACK:   oled->buffer[dataPos] &= ~(currentByte << yOffset); break;
+          case INVERSE: oled->buffer[dataPos] ^= currentByte << yOffset; break;
+        }
+
+        if (dataPos < (oled->displayBufferSize - oled->width)) {
+          switch (oled->color) {
+            case WHITE:   oled->buffer[dataPos + oled->width] |= currentByte >> (8 - yOffset); break;
+            case BLACK:   oled->buffer[dataPos + oled->width] &= ~(currentByte >> (8 - yOffset)); break;
+            case INVERSE: oled->buffer[dataPos + oled->width] ^= currentByte >> (8 - yOffset); break;
+          }
+        }
+      } else {
+        // Make new offset position
+        yOffset = -yOffset;
+
+        switch (oled->color) {
+          case WHITE:   oled->buffer[dataPos] |= currentByte >> yOffset; break;
+          case BLACK:   oled->buffer[dataPos] &= ~(currentByte >> yOffset); break;
+          case INVERSE: oled->buffer[dataPos] ^= currentByte >> yOffset; break;
+        }
+
+        // Prepare for next iteration by moving one block up
+        yMove -= 8;
+
+        // and setting the new yOffset
+        yOffset = 8 - yOffset;
+      }
+    }
+  }
+}
 void inline OLEDDisplay_drawInternal(OLEDDisplay_t *oled, int16_t xMove, int16_t yMove, int16_t width, int16_t height, const uint8_t *data, uint16_t offset, uint16_t bytesInData) {
   if (width < 0 || height < 0) return;
   if (yMove + height < 0 || yMove > oled->height)  return;
