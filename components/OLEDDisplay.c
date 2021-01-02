@@ -116,7 +116,6 @@ OLEDDisplay_t * OLEDDisplay_init()
             return 0L;
     }
 
-    OLEDDisplay_resetDisplay(oled);
     return (oled);
 		
 }
