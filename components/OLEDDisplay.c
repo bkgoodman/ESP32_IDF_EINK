@@ -138,8 +138,8 @@ OLEDDISPLAY_COLOR OLEDDisplay_getColor(OLEDDisplay_t *oled) {
 }
 
 void OLEDDisplay_setPixel(OLEDDisplay_t *oled, int16_t x, int16_t y) {
-  int bytespercol = oled->width/8;
-  int byteoffset = (x*bytespercol) + (((oled->width-1)-y)/8);
+  int bytespercol = oled->height/8;
+  int byteoffset = (x*bytespercol) + (((oled->height-1)-y)/8);
   uint8_t shift = (y%8);
   if (x >= 0 && x < oled->width && y >= 0 && y < oled->height) {
     switch (oled->color) {
@@ -151,8 +151,8 @@ void OLEDDisplay_setPixel(OLEDDisplay_t *oled, int16_t x, int16_t y) {
 }
 
 void OLEDDisplay_setPixelColor(OLEDDisplay_t *oled, int16_t x, int16_t y, OLEDDISPLAY_COLOR color) {
-  int bytespercol = oled->width/8;
-  int byteoffset = (x*bytespercol) + (((oled->width-1)-y)/8);
+  int bytespercol = oled->height/8;
+  int byteoffset = (x*bytespercol) + (((oled->height-1)-y)/8);
   uint8_t shift = (y%8);
   if (x >= 0 && x < oled->width && y >= 0 && y < oled->height) {
     switch (color) {
@@ -164,8 +164,8 @@ void OLEDDisplay_setPixelColor(OLEDDisplay_t *oled, int16_t x, int16_t y, OLEDDI
 }
 
 void OLEDDisplay_clearPixel(OLEDDisplay_t *oled, int16_t x, int16_t y) {
-  int bytespercol = oled->width/8;
-  int byteoffset = (x*bytespercol) + (((oled->width-1)-y)/8);
+  int bytespercol = oled->height/8;
+  int byteoffset = (x*bytespercol) + (((oled->height-1)-y)/8);
   uint8_t shift = (y%8);
   if (x >= 0 && x < oled->width && y >= 0 && y < oled->height) {
     switch (oled->color) {
