@@ -539,8 +539,8 @@ void draw_image(gimpimage_t *srcimg, uint8_t *black, uint8_t *red,int h, int w, 
 			
 
 			int bytespercol = 128/8;
-			int byteoffset = (x*bytespercol) + (y/8);
-			uint8_t shift = 7-(y%8);
+			int byteoffset = (x*bytespercol) + ((127-y)/8);
+			uint8_t shift = (y%8);
 			if ((y<3) && (x<3))
 				printf("DEST byteoffset %d shift %d\n",byteoffset, shift);
 			if (color == 0) {
