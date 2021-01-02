@@ -14,8 +14,7 @@
 #include "esp_system.h"
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
-
-#include "pretty_effect.h"
+#include "OLEDDisplay.h"
 
 /*
  This code displays some fancy graphics on the 320x240 LCD on an ESP-WROVER_KIT board.
@@ -202,14 +201,10 @@ void lcd_cmd(spi_device_handle_t spi, const uint8_t cmd)
     t.length=8;                     //Command is 8 bits
     t.tx_buffer=&cmd;               //The data is the cmd itself
     t.user=(void*)0;                //D/C needs to be set to 0
-		printf("Send CMD 0x%x...",cmd);
 #ifdef  PIN_NUM_BUSY
-		while ( gpio_get_level(PIN_NUM_BUSY)==0)
-		printf("WAIT 0x%x\n",cmd);
+    while ( gpio_get_level(PIN_NUM_BUSY)==0);
 #endif
-		//printf("...transmitting...");
     ret=spi_device_polling_transmit(spi, &t);  //Transmit!
-		printf("Done\n");
     assert(ret==ESP_OK);            //Should have had no issues.
 }
 
@@ -230,12 +225,9 @@ void lcd_data(spi_device_handle_t spi, const uint8_t *data, int len)
     t.tx_buffer=data;               //Data
     t.user=(void*)1;                //D/C needs to be set to 1
 #ifdef  PIN_NUM_BUSY
-		while ( gpio_get_level(PIN_NUM_BUSY)==0);
+    while ( gpio_get_level(PIN_NUM_BUSY)==0);
 #endif
-		//printf("Send Data 0x%x...",data[0]);
-		//printf("...transmitting...");
     ret=spi_device_polling_transmit(spi, &t);  //Transmit!
-		//printf(" Done\n");
     assert(ret==ESP_OK);            //Should have had no issues.
 }
 
@@ -244,7 +236,6 @@ void lcd_data(spi_device_handle_t spi, const uint8_t *data, int len)
 void lcd_spi_pre_transfer_callback(spi_transaction_t *t)
 {
     int dc=(int)t->user;
-		//printf(" [Set DC(%d) %d] ",PIN_NUM_DC,dc);
     gpio_set_level(PIN_NUM_DC, dc);
 }
 
@@ -284,9 +275,6 @@ void lcd_init(spi_device_handle_t spi)
     gpio_set_direction(PIN_NUM_BCKL, GPIO_MODE_OUTPUT);
 #endif
 
-			printf("Waiting\n");
-     //vTaskDelay(10000 / portTICK_RATE_MS);
-			printf("Reset\n");
 #ifdef PIN_NUM_RST
     //Reset the display
     gpio_set_level(PIN_NUM_RST, 0);
@@ -333,8 +321,6 @@ void lcd_init(spi_device_handle_t spi)
         lcd_init_cmds = ili_init_cmds;
     }
 
-     //vTaskDelay(10000 / portTICK_RATE_MS);
-			printf("Sending INitCommands\n");
     //Send all the commands
     while (lcd_init_cmds[cmd].databytes!=0xff) {
         lcd_cmd(spi, lcd_init_cmds[cmd].cmd);
@@ -345,90 +331,19 @@ void lcd_init(spi_device_handle_t spi)
         cmd++;
     }
 
-			printf("Sent\n");
-     //vTaskDelay(10000 / portTICK_RATE_MS);
-			printf("Sending Commands\n");
 #ifdef PIN_NUM_BCKL
     ///Enable backlight
     gpio_set_level(PIN_NUM_BCKL, 0);
 #endif
 }
 
-
-/* To send a set of lines we have to send a command, 2 data bytes, another command, 2 more data bytes and another command
- * before sending the line data itself; a total of 6 transactions. (We can't put all of this in just one transaction
- * because the D/C line needs to be toggled in the middle.)
- * This routine queues these commands up as interrupt transactions so they get
- * sent faster (compared to calling spi_device_transmit several times), and at
- * the mean while the lines for next transactions can get calculated.
- */
-static void send_lines(spi_device_handle_t spi, int ypos, uint16_t *linedata)
-{
-    esp_err_t ret;
-    int x;
-    //Transaction descriptors. Declared static so they're not allocated on the stack; we need this memory even when this
-    //function is finished because the SPI driver needs access to it even while we're already calculating the next line.
-    static spi_transaction_t trans[6];
-
-    //In theory, it's better to initialize trans and data only once and hang on to the initialized
-    //variables. We allocate them on the stack, so we need to re-init them each call.
-    for (x=0; x<6; x++) {
-        memset(&trans[x], 0, sizeof(spi_transaction_t));
-        if ((x&1)==0) {
-            //Even transfers are commands
-            trans[x].length=8;
-            trans[x].user=(void*)0;
-        } else {
-            //Odd transfers are data
-            trans[x].length=8*4;
-            trans[x].user=(void*)1;
-        }
-        trans[x].flags=SPI_TRANS_USE_TXDATA;
-    }
-    trans[0].tx_data[0]=0x2A;           //Column Address Set
-    trans[1].tx_data[0]=0;              //Start Col High
-    trans[1].tx_data[1]=0;              //Start Col Low
-    trans[1].tx_data[2]=(320)>>8;       //End Col High
-    trans[1].tx_data[3]=(320)&0xff;     //End Col Low
-    trans[2].tx_data[0]=0x2B;           //Page address set
-    trans[3].tx_data[0]=ypos>>8;        //Start page high
-    trans[3].tx_data[1]=ypos&0xff;      //start page low
-    trans[3].tx_data[2]=(ypos+PARALLEL_LINES)>>8;    //end page high
-    trans[3].tx_data[3]=(ypos+PARALLEL_LINES)&0xff;  //end page low
-    trans[4].tx_data[0]=0x2C;           //memory write
-    trans[5].tx_buffer=linedata;        //finally send the line data
-    trans[5].length=320*2*8*PARALLEL_LINES;          //Data length, in bits
-    trans[5].flags=0; //undo SPI_TRANS_USE_TXDATA flag
-
-    //Queue all transactions.
-    for (x=0; x<6; x++) {
-        ret=spi_device_queue_trans(spi, &trans[x], portMAX_DELAY);
-        assert(ret==ESP_OK);
-    }
-
-    //When we are here, the SPI driver is busy (in the background) getting the transactions sent. That happens
-    //mostly using DMA, so the CPU doesn't have much to do here. We're not going to wait for the transaction to
-    //finish because we may as well spend the time calculating the next line. When that is done, we can call
-    //send_line_finish, which will wait for the transfers to be done and check their status.
-}
-
-static void send_line_finish(spi_device_handle_t spi)
-{
-    spi_transaction_t *rtrans;
-    esp_err_t ret;
-    //Wait for all 6 transactions to be done and get back the results.
-    for (int x=0; x<6; x++) {
-        ret=spi_device_get_trans_result(spi, &rtrans, portMAX_DELAY);
-        assert(ret==ESP_OK);
-        //We could inspect rtrans now if we received any info back. The LCD is treated as write-only, though.
-    }
-}
 static void paper_trans_finish(spi_device_handle_t spi)
 {
     spi_transaction_t *rtrans;
     esp_err_t ret;
     ret=spi_device_get_trans_result(spi, &rtrans, portMAX_DELAY);
     //We could inspect rtrans now if we received any info back. The LCD is treated as write-only, though.
+    assert(ret==ESP_OK);
 }
 
 static void paper_send_data(spi_device_handle_t spi, uint16_t *linedata, size_t len) {
@@ -441,7 +356,7 @@ static void paper_send_data(spi_device_handle_t spi, uint16_t *linedata, size_t 
     memset(&trans, 0, sizeof(trans));
     trans.tx_buffer=linedata;        //finally send the line data
     trans.length=len*8;          //Data length, in bits
-		trans.user=1;
+    trans.user=(void *)1;
     trans.flags=0;
 
 #ifdef  PIN_NUM_BUSY
@@ -451,48 +366,6 @@ static void paper_send_data(spi_device_handle_t spi, uint16_t *linedata, size_t 
     assert(ret==ESP_OK);
 }
 
-static void paper_send_update(spi_device_handle_t spi, uint16_t *bwdata, uint16_t *reddata, size_t len) {
-	lcd_cmd(spi, 0x10); /* Send BW data */
-	paper_send_data(spi, bwdata,len);
-	lcd_cmd(spi, 0x13); /* Update Display */
-	paper_send_data(spi, reddata,len);
-	lcd_cmd(spi, 0x12); /* Update Display */
-}
-
-//Simple routine to generate some patterns and send them to the LCD. Don't expect anything too
-//impressive. Because the SPI driver handles transactions in the background, we can calculate the next line
-//while the previous one is being sent.
-static void display_pretty_colors(spi_device_handle_t spi)
-{
-    uint16_t *lines[2];
-    //Allocate memory for the pixel buffers
-    for (int i=0; i<2; i++) {
-        lines[i]=heap_caps_malloc(320*PARALLEL_LINES*sizeof(uint16_t), MALLOC_CAP_DMA);
-        assert(lines[i]!=NULL);
-    }
-    int frame=0;
-    //Indexes of the line currently being sent to the LCD and the line we're calculating.
-    int sending_line=-1;
-    int calc_line=0;
-
-    while(1) {
-        frame++;
-        for (int y=0; y<240; y+=PARALLEL_LINES) {
-            //Calculate a line.
-            pretty_effect_calc_lines(lines[calc_line], y, frame, PARALLEL_LINES);
-            //Finish up the sending process of the previous line, if any
-            if (sending_line!=-1) send_line_finish(spi);
-            //Swap sending_line and calc_line
-            sending_line=calc_line;
-            calc_line=(calc_line==1)?0:1;
-            //Send the line we currently calculated.
-            send_lines(spi, y, lines[sending_line]);
-            //The line set is queued up for sending now; the actual sending happens in the
-            //background. We can go on to calculate the next line set as long as we do not
-            //touch line[sending_line]; the SPI sending process is still reading from that.
-        }
-    }
-}
 typedef struct {
   uint16_t  	 width;
   uint16_t  	 height;
@@ -503,62 +376,47 @@ typedef struct {
 
 /* RGB 565 */
 void draw_image(gimpimage_t *srcimg, uint8_t *black, uint8_t *red,int h, int w, int x_offset, int y_offset) {
-	int x,y;
-	int uk=2;
-	int r_c=2;
-	//0x f8e1 ffde
-	int b_c=2;
-	int w_c=2;
-	for (y=0;y<srcimg->height;y++) 
-		for (x=0;x<srcimg->width;x++) {
-			int color = 0;
-			uint16_t srcoffset = (x) + (y*srcimg->width);
-			uint16_t rgb = srcimg->pixel_data[srcoffset];
-			//rgb = (rgb >> 8) | ((rgb << 8) & 0xff00);
-			uint8_t r = (rgb & 0xf800) >> 11;
-			uint8_t g = (rgb & 0x7e0) >> 6; /* One extra to make the 5 bits, too */
-			uint8_t b = (rgb & 0x1f);
+  int x,y;
+  int uk=10;
+  for (y=0;y<srcimg->height;y++) 
+    for (x=0;x<srcimg->width;x++) {
+      int color = 0;
+      uint16_t srcoffset = (x) + (y*srcimg->width);
+      uint16_t rgb = srcimg->pixel_data[srcoffset];
+      uint8_t r = (rgb & 0xf800) >> 11;
+      uint8_t g = (rgb & 0x7e0) >> 6; /* One extra to make the 5 bits, too */
+      uint8_t b = (rgb & 0x1f);
 
-			if ((y<3) && (x<3))
-				printf("SRC %d,%d RGB 0x%x is (%d %d %d) offset %d\n", x,y,rgb,r,g,b,srcoffset);
-			if ((r > 29) && (g > 29) && (b > 29)) {
-				if (w_c)  { printf("%d,%d RGB 0x%x is (%d %d %d) WHITE\n", x,y,rgb,r,g,b); w_c--;}
-				color = 0;
-			}
-			else if ((r < 4) && (g < 4) && (b < 4)) {
-				if (b_c)  { printf("%d,%d RGB 0x%x is (%d %d %d) BLAC\n", x,y,rgb,r,g,b); b_c--;}
-				color = 1;
-			}  
-			else if (r  > 18) {
-				if (r_c)  { printf("%d,%d RGB 0x%x is (%d %d %d) RED\n", x,y,rgb,r,g,b); r_c--;}
-				color = 2;
-			} 
-			else {
-				if (uk)  { printf("%d,%d RGB 0x%x is (%d %d %d) UK\n", x,y,rgb,r,g,b); uk--;}
-			}
-			
+      if ((r > 29) && (g > 29) && (b > 29)) {
+        color = 0;
+      }
+      else if ((r < 4) && (g < 4) && (b < 4)) {
+        color = 1;
+      }  
+      else if (r  > 18) {
+        color = 2;
+      } 
+      else {
+        if (uk)  { printf("%d,%d RGB 0x%x is (%d %d %d) UNKNOWN COLOR\n", x,y,rgb,r,g,b); uk--;}
+      }
 
-			int bytespercol = 128/8;
-			int byteoffset = (x*bytespercol) + ((127-y)/8);
-			uint8_t shift = (y%8);
-			if ((y<3) && (x<3))
-				printf("DEST byteoffset %d shift %d\n",byteoffset, shift);
-			if (color == 0) {
-				/* white */
-				if (red) red[byteoffset] |= (1<<shift);
-				if (black) black[byteoffset] |= (1<<shift);
-			} 
-			if (color == 1) {
-				/* BLACK */
-				//if (red) red[byteoffset] |= (1<<shift);
-				if (black) black[byteoffset] &= ~(1<<shift);
-			} 
-			if (color == 2) {
-				/* RED */
-				//if (black) black[byteoffset] &= (1<<shift);
-				if (red) red[byteoffset] &= ~(1<<shift);
-			} 
-	}
+      int bytespercol = 128/8;
+      int byteoffset = (x*bytespercol) + ((127-y)/8);
+      uint8_t shift = (y%8);
+      if (color == 0) {
+        /* white */
+        if (red) red[byteoffset] |= (1<<shift);
+        if (black) black[byteoffset] |= (1<<shift);
+      } 
+      if (color == 1) {
+        /* BLACK */
+        if (black) black[byteoffset] &= ~(1<<shift);
+      } 
+      if (color == 2) {
+        /* RED */
+        if (red) red[byteoffset] &= ~(1<<shift);
+      } 
+  }
 }
 
 gimpimage_t *mil_logo;
@@ -597,44 +455,55 @@ void app_main(void)
     //Initialize the LCD
     lcd_init(spi);
     //Initialize the effect displayed
-    //ret=pretty_effect_init();
     ESP_ERROR_CHECK(ret);
 
-    //Go do nice stuff.
-    //display_pretty_colors(spi);
-
-		// Brad Stuff
-		int i;
-#define bufsz ((296*128)/8)
+    // Brad Stuff
+    #define bufsz ((296*128)/8)
     void *db=heap_caps_malloc(bufsz, MALLOC_CAP_DMA);
 
 #if 0
-		memset(db,0xff,bufsz);
-		memset(db,0x0,bufsz/4);
-		lcd_cmd(spi, 0x10); /* Send BW data */
-		printf("Sending Data\n");
-		paper_send_data(spi, db,bufsz);
-		lcd_cmd(spi, 0x13); /* Update Display */
-		memset(db,0xff,bufsz);
-		memset(db+(bufsz/2),0,bufsz/4);
-		paper_send_data(spi, db,bufsz);
-		printf("Buffers sent\n");
-		lcd_cmd(spi, 0x12); /* Update Display */
-		printf("Refreshed Display\n");
+    memset(db,0xff,bufsz);
+    memset(db,0x0,bufsz/4);
+    lcd_cmd(spi, 0x10); /* Send BW data */
+    printf("Sending Data\n");
+    paper_send_data(spi, db,bufsz);
+    lcd_cmd(spi, 0x13); /* Update Display */
+    memset(db,0xff,bufsz);
+    memset(db+(bufsz/2),0,bufsz/4);
+    paper_send_data(spi, db,bufsz);
+    printf("Buffers sent\n");
+    lcd_cmd(spi, 0x12); /* Update Display */
+    printf("Refreshed Display\n");
 #endif
 
-		/* Do Black */
-		memset(db,0xff,bufsz);
-		draw_image((gimpimage_t *) &mil_logo, db, 0L,296, 128, 0, 0);
-		lcd_cmd(spi, 0x10); /* Send BW data */
-		paper_send_data(spi, db,bufsz);
-		paper_trans_finish(spi); // Since we're re-using the buffer for red and black to save memory - wait for it to complete
+    OLEDDisplay_t *oled = OLEDDisplay_init();
+    /* To save memory - we are only allocating one buffer and using it for black and red.
+    This requires two calls to draw_image and send_data, while waiting for the first 
+    send_data to (asynchronously) finish so we can re-use the buffer. If you have the
+    memory, just use a single call to draw_image with two buffers, then send them both
+    back-to-back.
 
-		/* Do Red */
-		memset(db,0xff,bufsz);
-		draw_image((gimpimage_t *) &mil_logo, 0L, db,296, 128, 0, 0);
-		lcd_cmd(spi, 0x13); /* Draw Red Data data */
-		paper_send_data(spi, db,bufsz);
+    Note that if you have code that is going to modify and redraw, you must always wait for
+    last SPI transaction to finish (paper_trans_finish) before re-using the buffer!
+    */
 
-		lcd_cmd(spi, 0x12); /* Update Display data */
+    /* Do Black */
+    memset(db,0xff,bufsz);
+    draw_image((gimpimage_t *) &mil_logo, db, 0L,296, 128, 0, 0);
+
+    OLEDDisplay_assignBuffer(oled,db);
+    OLEDDisplay_setFont(oled,ArialMT_Plain_16);
+    OLEDDisplay_drawString(oled,20, 64, "This is a test");
+
+    lcd_cmd(spi, 0x10); /* Send BW data */
+    paper_send_data(spi, db,bufsz);
+    paper_trans_finish(spi); // Since we're re-using the buffer for red and black to save memory - wait for it to complete
+
+    /* Do Red */
+    memset(db,0xff,bufsz);
+    draw_image((gimpimage_t *) &mil_logo, 0L, db,296, 128, 0, 0);
+    lcd_cmd(spi, 0x13); /* Draw Red Data data */
+    paper_send_data(spi, db,bufsz);
+
+    lcd_cmd(spi, 0x12); /* Update Display data */
 }
