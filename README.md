@@ -14,3 +14,4 @@ UPC: 614961950863
 https://www.waveshare.com/2.9inch-e-paper-module-b.htm 
 http://www.lilygo.cn/prod_view.aspx?TypeId=50031&Id=1169&FId=t3:50031:3
 
+![Photo](/eInkPhoto.jpg)
