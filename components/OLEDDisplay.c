@@ -56,13 +56,13 @@ static inline uint16_t _min(uint16_t x,uint16_t y) { if (x<y) return (x); return
 
 #define TAG "OLED"
 
-OLEDDisplay_t * OLEDDisplay_alloc() {
+OLEDDisplay_t * OLEDDisplay_alloc(int width, int height) {
 
 	OLEDDisplay_t *oled = malloc(sizeof(OLEDDisplay_t));
 	if (!oled)
 		return 0L;
-	oled->width = 296;
-	oled->height = 128;
+	oled->width = width;
+	oled->height = height;
 	oled->displayBufferSize = oled->width * oled->height / 8;
 	oled->color = WHITE;
 	oled->geometry = GEOMETRY_128_64;
@@ -108,9 +108,9 @@ int OLEDDisplay_allocateBuffer(OLEDDisplay_t *oled) {
   return 0;
 }
 
-OLEDDisplay_t * OLEDDisplay_init()
+OLEDDisplay_t * OLEDDisplay_init(int width, int height)
 {
-    OLEDDisplay_t *oled = OLEDDisplay_alloc();
+    OLEDDisplay_t *oled = OLEDDisplay_alloc(width,height);
     if (!oled) {
             ESP_LOGW(TAG, "OLED Allocation failed\n");
             return 0L;

@@ -173,7 +173,7 @@ typedef struct OLEDDisplay_s {
 
   // Allocates the buffer and initializes the driver & display. Resets the display!
   // Returns false if buffer allocation failed, true otherwise.
-  OLEDDisplay_t * OLEDDisplay_init();
+  OLEDDisplay_t * OLEDDisplay_init(int width, int height);
 
   // Free the memory used by the display
   void OLEDDisplay_end(OLEDDisplay_t *oled);

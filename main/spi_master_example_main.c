@@ -31,6 +31,8 @@
 #define LCD_HOST    HSPI_HOST
 #define DMA_CHAN    2
 
+#define DISPLAY_HEIGHT 128
+#define DISPLAY_WIDTH 296
 #define PIN_NUM_MISO 25
 #define PIN_NUM_MOSI 23
 #define PIN_NUM_CLK  18
@@ -272,8 +274,8 @@ void draw_image(gimpimage_t *srcimg, uint8_t *black, uint8_t *red,int h, int w, 
         if (uk)  { printf("%d,%d RGB 0x%x is (%d %d %d) UNKNOWN COLOR\n", x,y,rgb,r,g,b); uk--;}
       }
 
-      int bytespercol = 128/8;
-      int byteoffset = (x*bytespercol) + ((127-y)/8);
+      int bytespercol = DISPLAY_HEIGHT/8;
+      int byteoffset = (x*bytespercol) + (((DISPLAY_HEIGHT-1)-y)/8);
       uint8_t shift = (y%8);
       if (color == 0) {
         /* white */
@@ -330,7 +332,7 @@ void app_main(void)
     ESP_ERROR_CHECK(ret);
 
     // Brad Stuff
-    #define bufsz ((296*128)/8)
+    #define bufsz ((DISPLAY_WIDTH*DISPLAY_HEIGHT)/8)
     void *db=heap_caps_malloc(bufsz, MALLOC_CAP_DMA);
 
 #if 0
@@ -348,7 +350,7 @@ void app_main(void)
     printf("Refreshed Display\n");
 #endif
 
-    OLEDDisplay_t *oled = OLEDDisplay_init();
+    OLEDDisplay_t *oled = OLEDDisplay_init(DISPLAY_WIDTH,DISPLAY_HEIGHT);
     /* To save memory - we are only allocating one buffer and using it for black and red.
     This requires two calls to draw_image and send_data, while waiting for the first 
     send_data to (asynchronously) finish so we can re-use the buffer. If you have the
@@ -361,7 +363,7 @@ void app_main(void)
 
     /* Do Black */
     memset(db,0xff,bufsz);
-   	draw_image((gimpimage_t *) &mil_logo, db, 0L,296, 128, 0, 0);
+   	draw_image((gimpimage_t *) &mil_logo, db, 0L,DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 0);
 
     OLEDDisplay_assignBuffer(oled,db);
     OLEDDisplay_setFont(oled,ArialMT_Plain_16);
@@ -377,7 +379,7 @@ void app_main(void)
 
     /* Do Red */
     memset(db,0xff,bufsz);
-    draw_image((gimpimage_t *) &mil_logo, 0L, db,296, 128, 0, 0);
+    draw_image((gimpimage_t *) &mil_logo, 0L, db,DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 0);
     OLEDDisplay_setFont(oled,ArialMT_Plain_24);
     OLEDDisplay_drawString(oled,20, 90, "Testing 123");
     OLEDDisplay_fillCircle(oled,210,90,25);
