@@ -117,6 +117,7 @@ if __name__ == "__main__":
 	parser.add_argument('--startchar', default=32, type=int, help='ASCII start code')
 	parser.add_argument('--endchar', default=126, type=int, help='ASCII end code')
 	parser.add_argument('--debug','-d', action='count', help='Debug')
+	parser.add_argument('--addheader', help='Add definition to header file')
 
 	args = parser.parse_args()
 	
@@ -212,4 +213,9 @@ const uint8_t ArialMT_Plain_10[] PROGMEM = {
 					print hex(x),",",
 				print "// Char {0} {1}".format(l,chr(l))
 	print "};"
+
+	if args.addheader:
+		fd = open(args.addheader,"a+")
+		fd.write("const uint8_t *{0}_{1}[];\n".format(font.replace("-","_"),pointsize))
+		fd.close()
 	
