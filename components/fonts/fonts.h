@@ -5,7 +5,7 @@ const uint8_t Bookman_Demi_12[];
 const uint8_t Bookman_Demi_24[];
 const uint8_t Bookman_Demi_36[];
 const uint8_t Courier_Bold_12[];
-const uint8_t Courier_Bold_24[];
+const uint8_t oledfont_Courier_Bold_24[];
 const uint8_t Courier_Bold_36[];
 const uint8_t Helvetica_12[];
 const uint8_t Helvetica_24[];

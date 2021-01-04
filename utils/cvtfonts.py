@@ -184,7 +184,7 @@ const uint8_t ArialMT_Plain_10[] PROGMEM = {
 	print "#define PROGMEM"
 	print "#endif"
 	print "#include <stdint.h>"
-	print "const uint8_t {0}_{1}[] PROGMEM = {{".format(font.replace("-","_"),pointsize)
+	print "const uint8_t oledfont_{0}_{1}[] PROGMEM = {{".format(font.replace("-","_"),pointsize)
 	print int(totalw/numw),", // Width "
 	print int(totalh/numw),", // Height"
 	print firstchar,", // First Char"
@@ -194,11 +194,11 @@ const uint8_t ArialMT_Plain_10[] PROGMEM = {
 	for l in range(firstchar,lastchar+1):
 		if l in letters:
 			if 'data' in letters[l]:
-				print " {0}, {1}, {2}, {3}, // {4}".format(letters[l]['offset'] >> 8,
-					letters[l]['offset'] & 0xff,
-					len(letters[l]['data']),
-					letters[l]['charwidth'],
-					genwidth,l)
+				print " {0}, {1}, {2}, {3}, // Char {4} {5}".format(hex(letters[l]['offset'] >> 8),
+					hex(letters[l]['offset'] & 0xff),
+					hex(len(letters[l]['data'])),
+					hex(letters[l]['charwidth']),
+					l,chr(l))
 			else:
 				print " 0xff, 0xff, 0x00, {0}, // Char {1} {2} - Nodata".format(genwidth,l,chr(l))
 		else:
