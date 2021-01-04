@@ -1,11 +1,13 @@
 #include <stdint.h>
 #include "../components/include/OLEDDisplayFonts.h"
+//#include "test.h"
 #include <stdio.h>
 
 /* Check fonts in C file */
 
 void main() {
-	const uint8_t *font = ArialMT_Plain_16;
+	const uint8_t *font = ArialMT_Plain_10;
+	//const uint8_t *font = FontName;
 	int width, height, firstChar, numChars, i;
 	width = font[0];
 	height = font[1];
@@ -33,10 +35,14 @@ void main() {
 			printf("\n");
 			int x,y;
 			for (y=0;y<height;y++) {
+				printf("0x%2x: ",(1<<(y%8)));
 				for (x=0;x<width;x++) {
 					int bit = y%8;
 					int xo = x*ybytes;
 					int yo = y/8;
+					if ((yo+xo) >= len) {
+						printf(" ");
+					} else {
 					uint8_t val= font[4 + jtoffset + offset + yo + xo];
 #if 1
 					if (val & (1<<bit))
@@ -46,6 +52,7 @@ void main() {
 #else
 					printf("    %d,%d bytes offset %d+ %d=%d bit %d val 0x%x = %c\n",x,y,xo,yo,xo+yo,bit,val,(val&(0x1<<bit))?'X':' ');
 #endif
+					}
 				}
 			printf("\n");
 			}
