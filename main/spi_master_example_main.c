@@ -381,8 +381,8 @@ void app_main(void)
     /* Do Red */
     memset(db,0xff,bufsz);
     draw_image((gimpimage_t *) &mil_logo, 0L, db,DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 0);
-    OLEDDisplay_setFont(oled,Utopia_24);
-    OLEDDisplay_drawString(oled,20, 90, "Testing 123");
+    OLEDDisplay_setFont(oled,oledfont_AvantGarde_Book_24);
+    OLEDDisplay_drawString(oled,20, 90, "ABCabd123");
     OLEDDisplay_fillCircle(oled,210,90,25);
     OLEDDisplay_drawVerticalLine(oled,290,10,108);
     lcd_cmd(spi, 0x13); /* Draw Red Data data */

@@ -2,7 +2,7 @@
 #define PROGMEM
 #endif
 #include <stdint.h>
-const uint8_t AvantGarde_Book_24[] PROGMEM = {
+const uint8_t oledfont_AvantGarde_Book_24[] PROGMEM = {
 16 , // Width 
 1 , // Height
 32 , // First Char
