@@ -7,7 +7,7 @@ import subprocess,sys,os
 import argparse
 
 debug =False
-def getletter(font,pointsize,letter):
+def getletter(font,pointsize,letter,debug=0):
 	#print ("Converting")
 
 	charspace = 2 # Pixels between characters??
@@ -113,21 +113,22 @@ if __name__ == "__main__":
 	parser.add_argument('--font', 
 											default="Utopia",
 											help='Font name from convert -list font)')
-	parser.add_argument('--pointsize', 
-											default=10,
-											help='pointsize')
+	parser.add_argument('--pointsize', default=10, help='pointsize')
+	parser.add_argument('--startchar', default=32, type=int, help='ASCII start code')
+	parser.add_argument('--endchar', default=126, type=int, help='ASCII end code')
+	parser.add_argument('--debug','-d', action='count', help='Debug')
 
 	args = parser.parse_args()
 	
 	font = args.font
 	pointsize= args.pointsize
-	for letter in [chr(t) for t in range(32,127)]:
+	for letter in [chr(t) for t in range(args.startchar,args.endchar+1)]:
 		sys.stderr.write ("PROCESS {2} {3} LETTER {0} {1}\n".format(letter,ord(letter),font,pointsize))
-		ret = getletter(font,pointsize,letter)
+		ret = getletter(font,pointsize,letter,debug=args.debug)
 		letters[ord(letter)]=ret
 		letters[ord(letter)]['char']=letter
 
-	if debug: print letters
+	if args.debug: print letters
 
 	firstchar=None
 	lastchar=None
@@ -140,7 +141,7 @@ if __name__ == "__main__":
 		if 'charwidth' in letters[l]: totalw += letters[l]['charwidth']
 		if 'height' in letters[l]: totalh += letters[l]['height']
 		if 'height' in letters[l]: numw+=1
-	if debug: print "FIRSTchar",firstchar,"LASTchar",lastchar,"AVGwidth",(totalw/numw)
+	if args.debug: print "FIRSTchar",firstchar,"LASTchar",lastchar,"AVGwidth",(totalw/numw)
 
 	# Establish offsets
 	offset=0
@@ -148,8 +149,8 @@ if __name__ == "__main__":
 		if l in letters:
 			if 'data' in letters[l]:
 				letters[l]['offset']=offset
-				if debug: print "Letter",l,"char",letters[l]['char'],"Width",letters[l]['charwidth'],"offset",letters[l]['offset']
-				if debug: print "DATA LENGTH IS", len(letters[l]['data']), "FOR ", letters[l]['data']
+				if args.debug: print "Letter",l,"char",letters[l]['char'],"Width",letters[l]['charwidth'],"offset",letters[l]['offset']
+				if args.debug: print "DATA LENGTH IS", len(letters[l]['data']), "FOR ", letters[l]['data']
 				offset+=len(letters[l]['data'])
 			else:
 				letters[l]['offset']=0xffff
