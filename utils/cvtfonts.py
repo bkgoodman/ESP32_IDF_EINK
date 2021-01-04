@@ -7,47 +7,41 @@ import subprocess,sys,os
 import argparse
 
 debug =False
-def getletter(font,pointsize,letter,debug=0):
-	#print ("Converting")
 
-	charspace = 2 # Pixels between characters??
+# Some fonts don't give us a good size - figure it out...
+def findHeight(font,pointsize):
+	debug=True
 	try:
-		o = subprocess.check_output('convert  -font {0} -pointsize {1} label:{2} xbm:-'.format(font,pointsize,letter).split()).split("\n")
+		o = subprocess.check_output('convert -size {2}x{1} -font {0} -pointsize {1} label:gAj xbm:-'.format(font,pointsize,pointsize*2).split()).split("\n")
 	except:
 		return {
 		}
 
 	x = o.pop(0)
-	#print "1 IS",x
+	print "1 IS",x
 	width = int(x.split()[-1])
-	#print "Width is",width
+	print "Width is",width
 	x = o.pop(0)
 	#print "2 IS",x
 	height = int(x.split()[-1])
-	#print "Height is",height
+	print "Height is",height
 	x = o.pop(0)
 	#print "3 IS",x
 
-
-	#print "LINE",o
+	# Convert to Array
 	d = []
 	for x in o:
+		x = x.replace("}","")
+		x = x.replace(";","")
 		x = x.strip()
+		#print x
 		if x != "":
-			x = x.replace("}","")
-			x = x.replace(";","")
 			while x[-1] == " ": x=x[:-1]
 			if x[-1] == ",": x=x[:-1]
 			#print x
 			for v in x.split(","):
 				d.append(  int(v.strip(),16))
 
-	if debug: print "// Char '{0}' width {1} height {2}".format(letter,width,height)
-	for xx in d:
-		if debug: print hex(xx),
-	if debug: print 
-	# INPUT  is parsed WIDTH FIRST, bytes are WIDTHWISE, LSB first. 
-	# OUTPUT should be HEIGHT first, bytes are HEIGHWISE, LSB first
 	minpx=None
 	maxpx=None
 	widthbytes = 1+ ((width-1) >> 3) # Used in INPUT
@@ -84,6 +78,132 @@ def getletter(font,pointsize,letter,debug=0):
 	if debug: print "    "+(" "*minpx)+"^"+" "*((2*(maxpx-minpx))-1)+"^",minpx,maxpx
 	if debug: print ""
 
+heightmethod=None
+baseline=None
+
+def getletter(font,pointsize,letter,debug=0):
+	global heightmethod
+	global baseline
+	#findHeight(font,pointsize)
+	#sys.exit()
+	charspace = 2 # Pixels between characters??
+	if (debug):
+		o = subprocess.check_output(['echo','convert','-size','{0}x{1}'.format(pointsize*2,pointsize),'-font',font,'-pointsize',str(pointsize),'-draw','text 3,3 {0}'.format(letter),'xbm:-'])
+		print o
+
+	while True: # Start possible retry loop to calauate abaselin
+		if debug: print ("Converting")
+		try:
+			# This will work properly if the font HAS a given baseline - height will be "1" if no baseline given!
+			if heightmethod is None or heightmethod == "embedded":
+				if debug: print "Use embedded "
+				o = subprocess.check_output('convert  -font {0} -pointsize {1} label:{2} xbm:-'.format(font,pointsize,letter).split()).split("\n")
+
+			# This will always TOP justify - Imagemagic chokes on numbers - so we use this assuming that it will draw them full-ascent, no descent
+			elif heightmethod=="needcalc" or ((ord(letter[0]) >= 48) and (ord(letter[0])<=57)):
+				if debug: print "Need Basline "
+				o = subprocess.check_output('convert  -gravity forget -size {3}x{1} -font {0} -pointsize {1} label:{2} xbm:-'.format(font,pointsize,letter,pointsize*2).split()).split("\n")
+
+			#o = subprocess.check_output('convert  -size {3}x{1} -font {0} -pointsize {1} -draw 3,3 {2} xbm:-'.format(font,pointsize,letter,pointsize*2).split()).split("\n")
+
+			# This will properly put the baseline at a given position
+			elif heightmethod == "baseline":
+				if debug: print "Have baseline - get absolute"
+				o = subprocess.check_output(['convert','-size','{0}x{1}'.format(pointsize*2,pointsize),'xc:white','-font',font,'-pointsize',str(pointsize),'-draw','text 0,{1} {0}'.format(letter,baseline),'xbm:-']).split("\n")
+			else:
+				print "UNKNOWN HEIGHT METHOD",heightmethod
+		except KeyboardInterrupt:
+			sys.exit(0)
+		except BaseException as e:
+			print "convert error",e
+			return {
+			}
+
+		x = o.pop(0)
+		if debug: print "1 IS",x
+		width = int(x.split()[-1])
+		if debug: print "Width is",width
+		x = o.pop(0)
+		#print "2 IS",x
+		height = int(x.split()[-1])
+		if debug: print "Height is",height
+		x = o.pop(0)
+		#print "3 IS",x
+
+
+		# SANITY CHECK HEIGHT!!
+		if heightmethod is None and height >1:
+			heightmethod = "embedded" # ascent/decent is imbedded in font
+		elif heightmethod is None and height == 1:
+			heightmethod = "needcalc" # It's not embeeded - we need to calculate - do this now
+			continue
+
+		#print "LINE",o
+		d = []
+		for x in o:
+			x = x.replace("}","")
+			x = x.replace(";","")
+			x = x.strip()
+			if x != "":
+				while x[-1] == " ": x=x[:-1]
+				if x[-1] == ",": x=x[:-1]
+				if debug: print x
+				for v in x.split(","):
+					d.append(  int(v.strip(),16))
+
+		if debug: print "// Char '{0}' width {1} height {2}".format(letter,width,height)
+		for xx in d:
+			if debug: print hex(xx),
+		if debug: print 
+		# INPUT  is parsed WIDTH FIRST, bytes are WIDTHWISE, LSB first. 
+		# OUTPUT should be HEIGHT first, bytes are HEIGHWISE, LSB first
+		minpx=None
+		maxpx=None
+		maxYpt=None
+		widthbytes = 1+ ((width-1) >> 3) # Used in INPUT
+		heightbytes = 1+ ((height-1) >> 3) # Used for OUTPUT
+		if debug: print "width",width,"HEIGHT",height
+		if debug: print "WIDTHBYTES is",widthbytes,"HEIGHTBYTES will be",heightbytes
+		outarray = [ [0]*heightbytes for i in range(width)]
+		for y in range(0,height):
+			if debug: print "{0:2x}:".format((1<<(y%8))),
+			#print ":".format((1<<(y%8))),
+			ybyte = y*widthbytes
+			for x in range(0,width):
+				bit = x%8
+				xbyte = x/8
+				offset = ybyte+xbyte
+				#print (x,y),bit,xbyte,ybyte,offset,d[offset]
+				data =  (d[offset] & (1<<bit))
+
+				# Calculate output location
+				x_out = x
+				y_out_byte = int(y/8)
+				y_out_bit = y%8
+				if data:
+					if debug: print "X",
+					#print outarray
+					#print "IN {0},{1} output to {2},{3} bit {4}".format(x,y,x_out,y_out_byte,y_out_bit)
+					outarray[x_out][y_out_byte] |= (1<<y_out_bit)
+					if minpx is None or x<minpx: minpx=x
+					if maxpx is None or x>maxpx: maxpx=x
+					if maxYpt is None or y>maxYpt: maxYpt=y
+				else:
+					if debug: print " ",
+			if debug: print "<--"
+		#print "     "+(" "*minpx)+"^"+" "*((2*(maxpx-minpx))-1)+"^",minpx,maxpx
+		if debug: print "    "+(" "*minpx)+"^"+" "*((2*(maxpx-minpx))-1)+"^",minpx,maxpx
+		if debug: print ""
+
+		if heightmethod == "needcalc": 
+			# If we needed to calculate hight - we have it - so redo the character
+			heightmethod = "baseline"	
+			baseline = maxYpt+1
+			if debug: "BASELINE SET to",baseline
+		else:
+			# Else keep going
+			break		
+
 	
 	outwidth = (maxpx-minpx)+1
 
@@ -113,16 +233,28 @@ if __name__ == "__main__":
 	parser.add_argument('--font', 
 											default="Utopia",
 											help='Font name from convert -list font)')
-	parser.add_argument('--pointsize', default=10, help='pointsize')
+	parser.add_argument('--pointsize', default=10, type=int,help='pointsize')
 	parser.add_argument('--startchar', default=32, type=int, help='ASCII start code')
 	parser.add_argument('--endchar', default=126, type=int, help='ASCII end code')
 	parser.add_argument('--debug','-d', action='count', help='Debug')
 	parser.add_argument('--addheader', help='Add definition to header file')
+	parser.add_argument('--ascent', help='Ascent hight')
+	parser.add_argument('--baselinechar', help='Character to use as baseline to figure out ascent height',default='A')
 
 	args = parser.parse_args()
+
+	try:
+		baseline = int(args.ascent)
+		heightmethod="baseline"
+	except:
+		heightmethod=None
 	
 	font = args.font
 	pointsize= args.pointsize
+
+	if heightmethod is None:
+		if debug: print "GETTING HEIGHT/ASCENT"
+		ret = getletter(font,pointsize,args.baselinechar,debug=args.debug)
 	for letter in [chr(t) for t in range(args.startchar,args.endchar+1)]:
 		sys.stderr.write ("PROCESS {2} {3} LETTER {0} {1}\n".format(letter,ord(letter),font,pointsize))
 		ret = getletter(font,pointsize,letter,debug=args.debug)
@@ -136,6 +268,7 @@ if __name__ == "__main__":
 	totalw=0;
 	totalh=0;
 	numw=0;
+
 	for l in letters:
 		if firstchar is None or firstchar>l: firstchar=l
 		if lastchar is None or lastchar<l: lastchar=l
@@ -216,6 +349,6 @@ const uint8_t ArialMT_Plain_10[] PROGMEM = {
 
 	if args.addheader:
 		fd = open(args.addheader,"a+")
-		fd.write("const uint8_t *{0}_{1}[];\n".format(font.replace("-","_"),pointsize))
+		fd.write("const uint8_t *oledfont_{0}_{1}[];\n".format(font.replace("-","_"),pointsize))
 		fd.close()
 	
