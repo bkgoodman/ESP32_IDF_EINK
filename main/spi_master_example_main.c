@@ -92,7 +92,7 @@ DRAM_ATTR static const lcd_init_cmd_t paper_init_cmds[]={
     /* VCOM Internval and Data Setting (CDI) */
     {0x50, {0x77}, 1},
     /* TRES  */
-    {0x61, {0x80, 0x01, 0x28}, 3},
+    {0x61, {DISPLAY_HEIGHT, (DISPLAY_WIDTH >> 8) & 0x01, DISPLAY_WIDTH & 0xFF}, 3},
     {0, {0}, 0xff},
 };
 /* Send a command to the LCD. Uses spi_device_polling_transmit, which waits
