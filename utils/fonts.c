@@ -1,13 +1,13 @@
 #include <stdint.h>
 #include "../components/include/OLEDDisplayFonts.h"
-//#include "test.h"
+#include "test.h"
 #include <stdio.h>
 
 /* Check fonts in C file */
 
 void main() {
-	const uint8_t *font = ArialMT_Plain_10;
-	//const uint8_t *font = FontName;
+	//const uint8_t *font = ArialMT_Plain_10;
+	const uint8_t *font = FontName;
 	int width, height, firstChar, numChars, i;
 	width = font[0];
 	height = font[1];

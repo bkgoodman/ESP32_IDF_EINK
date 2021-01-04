@@ -39,7 +39,7 @@ def getletter(font,pointsize,letter):
 		print hex(xx),
 	print 
 	# INPUT  is parsed WIDTH FIRST, bytes are WIDTHWISE, LSB first. 
-	# OUTPUT should be WIDTH first, bytes are HEIGHWISE, LSB first
+	# OUTPUT should be HEIGHT first, bytes are HEIGHWISE, LSB first
 	minpx=None
 	maxpx=None
 	widthbytes = 1+ ((width-1) >> 3) # Used in INPUT
@@ -127,8 +127,9 @@ if __name__ == "__main__":
 	offset=0
 	for l in range(firstchar,lastchar+1):
 		if l in letters:
-			letters[l][offset]=offset
-			print "Letter",l,"char",letters[l]['char'],"Width",letters[l]['charwidth'],"offset",letters[l][offset]
+			letters[l]['offset']=offset
+			print "Letter",l,"char",letters[l]['char'],"Width",letters[l]['charwidth'],"offset",letters[l]['offset']
+			print "DATA LENGTH IS", len(letters[l]['data']), "FOR ", letters[l]['data']
 			offset+=len(letters[l]['data'])
 
 	""" Write out data
@@ -154,6 +155,9 @@ const uint8_t ArialMT_Plain_10[] PROGMEM = {
 	"""
 	
 	genwidth = int(totalw/numw)
+	print "#if ndef PROGMEM"
+	print "#define PROGMEM"
+	print "#endif"
 	print " const uint8_t FontName[] PROGMEM = {"
 	print int(totalw/numw),", // Width "
 	print int(totalh/numw),", // Height"
@@ -163,8 +167,7 @@ const uint8_t ArialMT_Plain_10[] PROGMEM = {
 	print "// Jump Table:"
 	for l in range(firstchar,lastchar+1):
 		if l in letters:
-			letters[l]['offset']=offset
-			print " {0}, {1}, {2}, {3} // {4} - Nodata".format(letters[l]['offset'] >> 8,
+			print " {0}, {1}, {2}, {3}, // {4} - Nodata".format(letters[l]['offset'] >> 8,
 				letters[l]['offset'] & 0xff,
 				len(letters[l]['data']),
 				letters[l]['charwidth'],
