@@ -1,7 +1,8 @@
-#if ndef PROGMEM
+#ifndef PROGMEM
 #define PROGMEM
 #endif
-const uint8_t Bookman-Demi_36[] PROGMEM = {
+#include <stdint.h>
+const uint8_t Bookman_Demi_36[] PROGMEM = {
 24 , // Width 
 1 , // Height
 32 , // First Char

@@ -1,7 +1,8 @@
-#if ndef PROGMEM
+#ifndef PROGMEM
 #define PROGMEM
 #endif
-const uint8_t Palatino-Roman_12[] PROGMEM = {
+#include <stdint.h>
+const uint8_t Palatino_Roman_12[] PROGMEM = {
 9 , // Width 
 1 , // Height
 32 , // First Char

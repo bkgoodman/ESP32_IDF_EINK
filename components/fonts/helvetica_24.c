@@ -1,6 +1,7 @@
-#if ndef PROGMEM
+#ifndef PROGMEM
 #define PROGMEM
 #endif
+#include <stdint.h>
 const uint8_t Helvetica_24[] PROGMEM = {
 15 , // Width 
 1 , // Height

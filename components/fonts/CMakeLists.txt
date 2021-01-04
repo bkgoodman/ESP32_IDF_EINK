@@ -1,6 +1,5 @@
 idf_component_register(
-SRCS "OLEDDisplay.c" 
-"OLEDDisplayFonts.c"
+SRCS 
  "avantgarde_12.c"
  "avantgarde_24.c"
  "avantgarde_36.c"

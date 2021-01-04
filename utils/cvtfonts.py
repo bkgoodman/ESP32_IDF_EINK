@@ -179,10 +179,11 @@ const uint8_t ArialMT_Plain_10[] PROGMEM = {
 	"""
 	
 	genwidth = int(totalw/numw)
-	print "#if ndef PROGMEM"
+	print "#ifndef PROGMEM"
 	print "#define PROGMEM"
 	print "#endif"
-	print "const uint8_t {0}_{1}[] PROGMEM = {{".format(font,pointsize)
+	print "#include <stdint.h>"
+	print "const uint8_t {0}_{1}[] PROGMEM = {{".format(font.replace("-","_"),pointsize)
 	print int(totalw/numw),", // Width "
 	print int(totalh/numw),", // Height"
 	print firstchar,", // First Char"

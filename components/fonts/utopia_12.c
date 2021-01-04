@@ -1,6 +1,7 @@
-#if ndef PROGMEM
+#ifndef PROGMEM
 #define PROGMEM
 #endif
+#include <stdint.h>
 const uint8_t Utopia_12[] PROGMEM = {
 9 , // Width 
 15 , // Height

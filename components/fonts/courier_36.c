@@ -1,7 +1,8 @@
-#if ndef PROGMEM
+#ifndef PROGMEM
 #define PROGMEM
 #endif
-const uint8_t Courier-Bold_36[] PROGMEM = {
+#include <stdint.h>
+const uint8_t Courier_Bold_36[] PROGMEM = {
 25 , // Width 
 1 , // Height
 32 , // First Char

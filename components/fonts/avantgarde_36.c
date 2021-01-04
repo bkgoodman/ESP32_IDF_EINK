@@ -1,7 +1,8 @@
-#if ndef PROGMEM
+#ifndef PROGMEM
 #define PROGMEM
 #endif
-const uint8_t AvantGarde-Book_36[] PROGMEM = {
+#include <stdint.h>
+const uint8_t AvantGarde_Book_36[] PROGMEM = {
 22 , // Width 
 1 , // Height
 32 , // First Char
