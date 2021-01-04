@@ -1,5 +1,3 @@
-convert error Command '['convert', '-font', 'Utopia', '-pointsize', '24', 'label:', 'xbm:-']' returned non-zero exit status 1
-convert error Command '['convert', '-font', 'Utopia', '-pointsize', '24', 'label:\\', 'xbm:-']' returned non-zero exit status 1
 #ifndef PROGMEM
 #define PROGMEM
 #endif
@@ -71,7 +69,7 @@ const uint8_t oledfont_Utopia_24[] PROGMEM = {
  0x9, 0xb6, 0x35, 0x11, // Char 89 Y
  0x9, 0xeb, 0x37, 0x12, // Char 90 Z
  0xa, 0x22, 0x10, 0xb, // Char 91 [
- 0xff, 0xff, 0x00, 15, // Char 92 \Backslash - Nodata
+ 0xff, 0xff, 0x00, 15, // Char 92 Backslash - Nodata
  0xa, 0x32, 0x10, 0xb, // Char 93 ]
  0xa, 0x42, 0x2b, 0x11, // Char 94 ^
  0xa, 0x6d, 0x30, 0xf, // Char 95 _
