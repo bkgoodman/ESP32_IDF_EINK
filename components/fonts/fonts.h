@@ -26,3 +26,8 @@ const uint8_t *oledfont_Bookman_Demi_24[];
 const uint8_t *oledfont_Helvetica_36[];
 const uint8_t *oledfont_Palatino_Roman_24[];
 const uint8_t *oledfont_Utopia_24[];
+const uint8_t *oledfont_AvantGarde_Book_12[];
+const uint8_t *oledfont_Bookman_Demi_24[];
+const uint8_t *oledfont_Helvetica_36[];
+const uint8_t *oledfont_Palatino_Roman_24[];
+const uint8_t *oledfont_Utopia_24[];
