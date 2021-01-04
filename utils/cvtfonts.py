@@ -334,9 +334,9 @@ const uint8_t ArialMT_Plain_10[] PROGMEM = {
 					hex(letters[l]['charwidth']),
 					l,chr(l))
 			else:
-				print " 0xff, 0xff, 0x00, {0}, // Char {1} \{2} - Nodata".format(genwidth,l,chr(l) if l!= 92 else "Backslash")
+				print " 0xff, 0xff, 0x00, {0}, // Char {1} {2} - Nodata".format(genwidth,l,chr(l) if l!= 92 else "Backslash")
 		else:
-			print " 0xff, 0xff, 0x00, {0}, // Char {1} \{2} - Nodata".format(genwidth,l,chr(l) if l!= 92 else "Backslash")
+			print " 0xff, 0xff, 0x00, {0}, // Char {1} {2} - Nodata".format(genwidth,l,chr(l) if l!= 92 else "Backslash")
 	print
 	print "// Data Table:"
 	for l in range(firstchar,lastchar+1):
