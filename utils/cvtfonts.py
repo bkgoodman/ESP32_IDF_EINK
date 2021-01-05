@@ -290,6 +290,6 @@ const uint8_t ArialMT_Plain_10[] PROGMEM = {
 
 	if args.addheader:
 		fd = open(args.addheader,"a+")
-		fd.write("const uint8_t *oledfont_{0}_{1}[];\n".format(font.replace("-","_"),pointsize))
+		fd.write("extern const uint8_t oledfont_{0}_{1}[];\n".format(font.replace("-","_"),pointsize))
 		fd.close()
 	
