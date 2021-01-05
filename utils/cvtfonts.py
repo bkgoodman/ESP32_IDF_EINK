@@ -16,7 +16,8 @@ def getletter(font,pointsize,letter,debug=0):
 	#findHeight(font,pointsize)
 	#sys.exit()
 	charspace = 2 # Pixels between characters??
-	escch = letter if letter!="\"" else  "\\\""
+	escch = letter if letter[0]!=chr(92) else  "\\\\"
+	escch = letter if letter[0]!=chr(34) else  "\\\""
 
 	if letter == " ":
 		return {
@@ -32,12 +33,12 @@ def getletter(font,pointsize,letter,debug=0):
 			# This will work properly if the font HAS a given baseline - height will be "1" if no baseline given!
 			if heightmethod is None or heightmethod == "embedded":
 				if debug: print "Use embedded "
-				o = subprocess.check_output('convert  -font {0} -pointsize {1} label:{2} xbm:-'.format(font,pointsize,letter).split()).split("\n")
+				o = subprocess.check_output('convert  -font {0} -pointsize {1} label:{2} xbm:-'.format(font,pointsize,escch).split()).split("\n")
 
 			# This will always TOP justify - Imagemagic chokes on numbers - so we use this assuming that it will draw them full-ascent, no descent
 			elif heightmethod=="needcalc": # or ((ord(letter[0]) >= 48) and (ord(letter[0])<=57)):
 				if debug: print "Need Basline "
-				o = subprocess.check_output('convert  -gravity forget -size {3}x{1} -font {0} -pointsize {1} label:{2} xbm:-'.format(font,pointsize,letter,pointsize*2).split()).split("\n")
+				o = subprocess.check_output('convert  -gravity forget -size {3}x{1} -font {0} -pointsize {1} label:{2} xbm:-'.format(font,pointsize,escch,pointsize*2).split()).split("\n")
 
 			#o = subprocess.check_output('convert  -size {3}x{1} -font {0} -pointsize {1} -draw 3,3 {2} xbm:-'.format(font,pointsize,letter,pointsize*2).split()).split("\n")
 
@@ -50,7 +51,7 @@ def getletter(font,pointsize,letter,debug=0):
 		except KeyboardInterrupt:
 			sys.exit(0)
 		except BaseException as e:
-			print "convert error",e
+			sys.stderr.write("convert error"+str(e)+"\n")
 			return {
 			}
 
@@ -87,8 +88,13 @@ def getletter(font,pointsize,letter,debug=0):
 					d.append(  int(v.strip(),16))
 
 		if debug: print "// Char '{0}' width {1} height {2}".format(letter,width,height)
+		allff = True
 		for xx in d:
+			if xx != 0xff: allff = False
 			if debug: print hex(xx),
+		if allff:
+			sys.stderr.write("BAD DATA\n")
+			return {}
 		if debug: print 
 		# INPUT  is parsed WIDTH FIRST, bytes are WIDTHWISE, LSB first. 
 		# OUTPUT should be HEIGHT first, bytes are HEIGHWISE, LSB first
