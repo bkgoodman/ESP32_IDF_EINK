@@ -222,7 +222,7 @@ def getletter(font,pointsize,letter,debug=0):
 	if debug: print
 	if debug: print
 	return {
-		"charwidth":width+charspace,
+		"charwidth":outwidth+charspace,
 		"data":oa,
 		"height":height
 	}
