@@ -128,8 +128,6 @@ def getletter(font,pointsize,letter,debug=0):
 			if debug: print "<--"
 		#print "     "+(" "*minpx)+"^"+" "*((2*(maxpx-minpx))-1)+"^",minpx,maxpx
 		if debug: print "    "+(" "*minpx)+"^"+" "*((2*(maxpx-minpx))-1)+"^",minpx,maxpx
-		if baseline is not None and ((ord(letter) >= 48) and (ord(letter) <= 57)):
-			print "NUM DIGIT BASELINE ADJUST",baseline,"vs",maxYpt
 		if debug: print ""
 
 		if heightmethod == "needcalc": 
