@@ -7,77 +7,6 @@ import subprocess,sys,os
 import argparse
 
 debug =False
-
-# Some fonts don't give us a good size - figure it out...
-def findHeight(font,pointsize):
-	debug=True
-	try:
-		o = subprocess.check_output('convert -size {2}x{1} -font {0} -pointsize {1} label:gAj xbm:-'.format(font,pointsize,pointsize*2).split()).split("\n")
-	except:
-		return {
-		}
-
-	x = o.pop(0)
-	print "1 IS",x
-	width = int(x.split()[-1])
-	print "Width is",width
-	x = o.pop(0)
-	#print "2 IS",x
-	height = int(x.split()[-1])
-	print "Height is",height
-	x = o.pop(0)
-	#print "3 IS",x
-
-	# Convert to Array
-	d = []
-	for x in o:
-		x = x.replace("}","")
-		x = x.replace(";","")
-		x = x.strip()
-		#print x
-		if x != "":
-			while x[-1] == " ": x=x[:-1]
-			if x[-1] == ",": x=x[:-1]
-			#print x
-			for v in x.split(","):
-				d.append(  int(v.strip(),16))
-
-	minpx=None
-	maxpx=None
-	widthbytes = 1+ ((width-1) >> 3) # Used in INPUT
-	heightbytes = 1+ ((height-1) >> 3) # Used for OUTPUT
-	if debug: print "width",width,"HEIGHT",height
-	if debug: print "WIDTHBYTES is",widthbytes,"HEIGHTBYTES will be",heightbytes
-	outarray = [ [0]*heightbytes for i in range(width)]
-	for y in range(0,height):
-		if debug: print "{0:2x}:".format((1<<(y%8))),
-		#print ":".format((1<<(y%8))),
-		ybyte = y*widthbytes
-		for x in range(0,width):
-			bit = x%8
-			xbyte = x/8
-			offset = ybyte+xbyte
-			#print (x,y),bit,xbyte,ybyte,offset,d[offset]
-			data =  (d[offset] & (1<<bit))
-
-			# Calculate output location
-			x_out = x
-			y_out_byte = int(y/8)
-			y_out_bit = y%8
-			if data:
-				if debug: print "X",
-				#print outarray
-				#print "IN {0},{1} output to {2},{3} bit {4}".format(x,y,x_out,y_out_byte,y_out_bit)
-				outarray[x_out][y_out_byte] |= (1<<y_out_bit)
-				if minpx is None or x<minpx: minpx=x
-				if maxpx is None or x>maxpx: maxpx=x
-			else:
-				if debug: print " ",
-		if debug: print "<--"
-	#print "     "+(" "*minpx)+"^"+" "*((2*(maxpx-minpx))-1)+"^",minpx,maxpx
-	if debug: print "    "+(" "*minpx)+"^"+" "*((2*(maxpx-minpx))-1)+"^",minpx,maxpx
-	if debug: print ""
-
 heightmethod=None
 baseline=None
 
@@ -87,8 +16,14 @@ def getletter(font,pointsize,letter,debug=0):
 	#findHeight(font,pointsize)
 	#sys.exit()
 	charspace = 2 # Pixels between characters??
+	escch = letter if letter!="\"" else  "\\\""
+
+	if letter == " ":
+		return {
+			"charwidth":int(pointsize/4)
+		}
 	if (debug):
-		o = subprocess.check_output(['echo','convert','-size','{0}x{1}'.format(pointsize*2,pointsize),'-font',font,'-pointsize',str(pointsize),'-draw','text 3,3 {0}'.format(letter),'xbm:-'])
+		o = subprocess.check_output(['echo','convert','-size','{0}x{1}'.format(pointsize*2,pointsize),'-font',font,'-pointsize',str(pointsize),'-draw','text 3,3 "{0}"'.format(escch),'xbm:-'])
 		print o
 
 	while True: # Start possible retry loop to calauate abaselin
@@ -100,7 +35,7 @@ def getletter(font,pointsize,letter,debug=0):
 				o = subprocess.check_output('convert  -font {0} -pointsize {1} label:{2} xbm:-'.format(font,pointsize,letter).split()).split("\n")
 
 			# This will always TOP justify - Imagemagic chokes on numbers - so we use this assuming that it will draw them full-ascent, no descent
-			elif heightmethod=="needcalc" or ((ord(letter[0]) >= 48) and (ord(letter[0])<=57)):
+			elif heightmethod=="needcalc": # or ((ord(letter[0]) >= 48) and (ord(letter[0])<=57)):
 				if debug: print "Need Basline "
 				o = subprocess.check_output('convert  -gravity forget -size {3}x{1} -font {0} -pointsize {1} label:{2} xbm:-'.format(font,pointsize,letter,pointsize*2).split()).split("\n")
 
@@ -109,7 +44,7 @@ def getletter(font,pointsize,letter,debug=0):
 			# This will properly put the baseline at a given position
 			elif heightmethod == "baseline":
 				if debug: print "Have baseline - get absolute"
-				o = subprocess.check_output(['convert','-size','{0}x{1}'.format(pointsize*2,pointsize),'xc:white','-font',font,'-pointsize',str(pointsize),'-draw','text 0,{1} {0}'.format(letter,baseline),'xbm:-']).split("\n")
+				o = subprocess.check_output(['convert','-size','{0}x{1}'.format(pointsize*2,pointsize),'xc:white','-font',font,'-pointsize',str(pointsize),'-draw','text 0,{1} "{0}"'.format(escch,baseline),'xbm:-']).split("\n")
 			else:
 				print "UNKNOWN HEIGHT METHOD",heightmethod
 		except KeyboardInterrupt:
@@ -184,15 +119,17 @@ def getletter(font,pointsize,letter,debug=0):
 					if debug: print "X",
 					#print outarray
 					#print "IN {0},{1} output to {2},{3} bit {4}".format(x,y,x_out,y_out_byte,y_out_bit)
-					outarray[x_out][y_out_byte] |= (1<<y_out_bit)
 					if minpx is None or x<minpx: minpx=x
 					if maxpx is None or x>maxpx: maxpx=x
 					if maxYpt is None or y>maxYpt: maxYpt=y
+					outarray[x_out][y_out_byte] |= (1<<y_out_bit)
 				else:
 					if debug: print " ",
 			if debug: print "<--"
 		#print "     "+(" "*minpx)+"^"+" "*((2*(maxpx-minpx))-1)+"^",minpx,maxpx
 		if debug: print "    "+(" "*minpx)+"^"+" "*((2*(maxpx-minpx))-1)+"^",minpx,maxpx
+		if baseline is not None and ((ord(letter) >= 48) and (ord(letter) <= 57)):
+			print "NUM DIGIT BASELINE ADJUST",baseline,"vs",maxYpt
 		if debug: print ""
 
 		if heightmethod == "needcalc": 
