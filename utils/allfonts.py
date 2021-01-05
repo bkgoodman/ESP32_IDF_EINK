@@ -116,7 +116,7 @@ Z003-MediumItalic
 """
 
 
-for f in fonts.split("\n"):
+for f in fonts.split("\n")[0:20]:
 	if f != "":
 		for s in (10,12,14,16,18,20,24,28,30,32,36):
 			print f,s

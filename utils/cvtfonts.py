@@ -16,8 +16,13 @@ def getletter(font,pointsize,letter,debug=0):
 	#findHeight(font,pointsize)
 	#sys.exit()
 	charspace = 2 # Pixels between characters??
-	escch = letter if letter[0]!=chr(92) else  "\\\\"
-	escch = letter if letter[0]!=chr(34) else  "\\\""
+	escch = letter 
+	if ord(letter[0])==92:
+		escch="\\\\"
+	elif ord(letter[0])==34:
+		escch="\\\""
+
+	print "ESCCH IS",escch,ord(letter[0])
 
 	if letter == " ":
 		return {
