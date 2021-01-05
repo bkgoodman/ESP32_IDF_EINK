@@ -367,9 +367,9 @@ void app_main(void)
    	draw_image((gimpimage_t *) &mil_logo, db, 0L,DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 0);
 
     OLEDDisplay_assignBuffer(oled,db);
-    OLEDDisplay_setFont(oled,ArialMT_Plain_16);
+    OLEDDisplay_setFont(oled,oledfont_Palatino_Roman_24);
     OLEDDisplay_setColor(oled,BLACK);
-    OLEDDisplay_drawString(oled,20, 64, "This is a test");
+    OLEDDisplay_drawString(oled,20, 64, "This test 123");
     OLEDDisplay_drawLine(oled,10,60,280,60);
     OLEDDisplay_fillRect(oled,240,70,40,40);
     OLEDDisplay_drawHorizontalLine(oled,10,120,276);
