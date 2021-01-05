@@ -332,7 +332,7 @@ const uint8_t ArialMT_Plain_10[] PROGMEM = {
 					hex(letters[l]['offset'] & 0xff),
 					hex(len(letters[l]['data'])),
 					hex(letters[l]['charwidth']),
-					l,chr(l))
+					l,chr(l) if l != 92 else "Backslash")
 			else:
 				print " 0xff, 0xff, 0x00, {0}, // Char {1} {2} - Nodata".format(genwidth,l,chr(l) if l!= 92 else "Backslash")
 		else:
