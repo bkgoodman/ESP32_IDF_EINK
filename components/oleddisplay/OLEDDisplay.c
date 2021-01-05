@@ -316,7 +316,7 @@ void OLEDDisplay_fillCircle(OLEDDisplay_t *oled, int16_t x0, int16_t y0, int16_t
 }
 
 
-void OLEDDisplay_drawHorizontalLine(OLEDDisplay_t *oled, int16_t x, int16_t y, int16_t length) {
+void OLEDDisplay_OLDdrawHorizontalLine(OLEDDisplay_t *oled, int16_t x, int16_t y, int16_t length) {
   if (y < 0 || y >= oled->width) return;
 
   if (x < 0) {
@@ -338,7 +338,8 @@ void OLEDDisplay_drawHorizontalLine(OLEDDisplay_t *oled, int16_t x, int16_t y, i
 #define MIN(x,y) ((x<y)?x:y)
 #define MAX(x,y) ((x>y)?x:y)
 
-void OLEDDisplay_NEWdrawHorizontalLine(OLEDDisplay_t *oled, int16_t x, int16_t y, int16_t length) {
+void OLEDDisplay_drawHorizontalLine(OLEDDisplay_t *oled, int16_t x, int16_t y, int16_t length) {
+			y = (oled->height-y);
 			if (x>oled->width) return;
 			if ((y<0) || (y>= oled->height)) return;
 			if (x<0) x=0;
@@ -350,14 +351,15 @@ void OLEDDisplay_NEWdrawHorizontalLine(OLEDDisplay_t *oled, int16_t x, int16_t y
 			uint16_t yo=(y>>3);
 			uint16_t bit = 7-(y%8);
 			uint16_t offset = (x * bytespercol)+yo;
-			while (length>0) {
-							oled->buffer[offset += bytespercol] |= (1<<bit);
+			while (length-->0) {
+							oled->buffer[offset += bytespercol] &= ~(1<<bit);
 			}
 }
 
 
-void OLEDDisplay_NEWdrawVerticalLine(OLEDDisplay_t *oled, int16_t x, int16_t y, int16_t length) {
-        short firstbyte,lastbyte,i;
+void OLEDDisplay_drawVerticalLine(OLEDDisplay_t *oled, int16_t x, int16_t y, int16_t length) {
+        short firstbyte,lastbyte;
+				y = (oled->height-y)-length;
         if ((x<0) || (x>= oled->width)) return;
         if (y<0)  y=0;
 				if (length == 0) return; // Needed?
@@ -370,7 +372,7 @@ void OLEDDisplay_NEWdrawVerticalLine(OLEDDisplay_t *oled, int16_t x, int16_t y, 
         lastbyte = (x * bytespercol)+lastbyte;
         //printf("Y from %d->%d bytes are %d->%d\n",starty,endy,firstbyte,lastbyte);
         // Masked bits are REMOVED
-        printf("  FIRST/LAST SAME ");
+        //printf("  FIRST/LAST SAME ");
         uint8_t startbit = (y%8);
         //printf ("Startbit %d ",startbit);
         startbit = (0xff00 >> startbit);
@@ -384,19 +386,19 @@ void OLEDDisplay_NEWdrawVerticalLine(OLEDDisplay_t *oled, int16_t x, int16_t y, 
         //printf ("  NETMASK 0x%x ",startbit | endbit);
         if (firstbyte == lastbyte) {
                 //printf("DATA 0x%x\n",~(startbit|endbit) & 0xff);
-                oled->buffer[firstbyte] |= (~(startbit|endbit) & 0xff);
+                oled->buffer[firstbyte] &= ~(~(startbit|endbit) & 0xff);
                 return;
         }
-        oled->buffer[firstbyte++] |= (~(startbit) & 0xff);
+        oled->buffer[firstbyte++] &= ~(~(startbit) & 0xff);
         //printf("  Loop with First %d Last %d ",firstbyte,lastbyte);
         //printf("  NET  First %d Last %d\n",firstbyte,lastbyte);
         while (firstbyte<lastbyte)
-                oled->buffer[firstbyte++]= 0xff;
-        oled->buffer[firstbyte] |= (~(endbit) & 0xff);
+                oled->buffer[firstbyte++]= 0x00;
+        oled->buffer[firstbyte] &= ~(~(endbit) & 0xff);
 
 }
 
-void OLEDDisplay_drawVerticalLine(OLEDDisplay_t *oled, int16_t x, int16_t y, int16_t length) {
+void OLEDDisplay_OLDdrawVerticalLine(OLEDDisplay_t *oled, int16_t x, int16_t y, int16_t length) {
   if (x < 0 || x >= oled->width) return;
 
   if (y < 0) {
