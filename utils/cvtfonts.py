@@ -263,11 +263,17 @@ const uint8_t ArialMT_Plain_10[] PROGMEM = {
 	for l in range(firstchar,lastchar+1):
 		if l in letters:
 			if 'data' in letters[l]:
-				print " {0}, {1}, {2}, {3}, // Char {4} {5}".format(hex(letters[l]['offset'] >> 8),
+				magic=0 # If len is too big - we store the bit in top of "width" should shound never be over 127
+				ll = len(letters[l]['data'])
+				if ll > 255:
+					ll -= 256
+					magic=0x80
+				print " {0}, {1}, {2}, {3}, // Char {4} {5} {6}".format(hex(letters[l]['offset'] >> 8),
 					hex(letters[l]['offset'] & 0xff),
-					hex(len(letters[l]['data'])),
-					hex(letters[l]['charwidth']),
-					l,chr(l) if l != 92 else "Backslash")
+					hex(ll),
+					hex(letters[l]['charwidth']+magic),
+					l,chr(l) if l != 92 else "Backslash",
+					"" if magic ==0 else "len lsb in width")
 			else:
 				print " 0xff, 0xff, 0x00, {0}, // Char {1} {2} - Nodata".format(genwidth,l,chr(l) if l!= 92 else "Backslash")
 		else:
