@@ -15,7 +15,6 @@ SRCS
  "utopia_12.c"
  "utopia_24.c"
  "utopia_36.c"
-
   "avantgarde_book_10.c"
   "avantgarde_book_12.c"
   "avantgarde_book_14.c"
