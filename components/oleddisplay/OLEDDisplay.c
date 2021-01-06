@@ -56,6 +56,7 @@ static inline uint16_t _min(uint16_t x,uint16_t y) { if (x<y) return (x); return
 
 #define TAG "OLED"
 
+void inline OLEDDisplay_drawPaperInternal(OLEDDisplay_t *oled, int16_t xMove, int16_t yMove, int16_t width, int16_t height, const uint8_t *data, uint16_t offset, uint16_t bytesInData);
 OLEDDisplay_t * OLEDDisplay_alloc(int width, int height) {
 
 	OLEDDisplay_t *oled = malloc(sizeof(OLEDDisplay_t));
@@ -991,3 +992,5 @@ char DefaultFontTableLookup(const uint8_t ch) {
 }
 
 
+void oleddisplay_drawpng(OLEDDisplay_t *oled, const uint8_t *imgstart, const uint8_t *imgend, int x, int y) {
+}

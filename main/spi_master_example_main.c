@@ -16,6 +16,7 @@
 #include "driver/gpio.h"
 #include "OLEDDisplay.h"
 #include "fonts.h"
+#include "upng.h"
 
 /*
  This code displays some fancy graphics on the 320x240 LCD on an ESP-WROVER_KIT board.
@@ -60,6 +61,8 @@
 #error UNDEFINED HOST
 #endif
 
+extern const uint8_t image_start[] asm("_binary_testpng_png_start");
+extern const uint8_t image_end[] asm("_binary_testpng_png_end");
 //To speed up transfers, every SPI transfer sends a bunch of lines. This define specifies how many. More means more memory use,
 //but less overhead for setting up / finishing transfers. Make sure 240 is dividable by this.
 #define PARALLEL_LINES 16
@@ -388,5 +391,11 @@ void app_main(void)
     lcd_cmd(spi, 0x13); /* Draw Red Data data */
     paper_send_data(spi, db,bufsz);
 
+	/* Try a PNG */
+	uint16_t pngWidth, pngHeight;
+	upng_t *p;
+	p=decodePNG(image_start, image_end, &pngWidth, &pngHeight);
+	printf("Width %d Height %d\n",pngWidth,pngHeight);
+	upng_free(p);
     lcd_cmd(spi, 0x12); /* Update Display data */
 }

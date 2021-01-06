@@ -1,4 +1,3 @@
-convert error Command '['convert', '-font', 'Utopia-Italic', '-pointsize', '24', 'label:\\', 'xbm:-']' returned non-zero exit status 1
 #ifndef PROGMEM
 #define PROGMEM
 #endif

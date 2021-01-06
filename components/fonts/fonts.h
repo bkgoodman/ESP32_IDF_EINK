@@ -1,4 +1,4 @@
-/* Add the actual C file to CMakeLists.txt to include in build! *
+/* Add the actual C file to CMakeLists.txt to include in build! */
  
 extern const uint8_t oledfont_Bookman_DemiItalic_14[];
 extern const uint8_t oledfont_AvantGarde_Book_10[];
