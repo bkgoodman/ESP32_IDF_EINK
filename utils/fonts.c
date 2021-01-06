@@ -1,13 +1,15 @@
 #include <stdint.h>
-#include "../components/include/OLEDDisplayFonts.h"
-//#include "test.h"
+//#include "../components/include/OLEDDisplayFonts.h"
+
+/* NOTE!! Make a font header with ./cvtfont.py */
+#include "../components/fonts/fonts.h"
 #include <stdio.h>
 
 /* Check fonts in C file */
 
 void main() {
-	const uint8_t *font = ArialMT_Plain_10;
-	//const uint8_t *font = FontName;
+	//const uint8_t *font = ArialMT_Plain_10;
+	const uint8_t *font = oledfont_Palatino_Roman_24;
 	int width, height, firstChar, numChars, i;
 	width = font[0];
 	height = font[1];
@@ -26,12 +28,12 @@ void main() {
 			printf("NODATA Width %d",width);
 		}
 		else {
-			int i;
+			int ii;
 			char c = i+firstChar;
 			printf("Char %c Offset %x datalen %d charwidth %d\n",((c>=32) && (c<127)) ? c : '?',offset,len,width);
 			printf("jtoffset %d offset %d\n",jtoffset,offset);
-			for (i=0;i<len;i++)
-				printf(" 0x%x", font[4 + jtoffset + offset + i]);
+			for (ii=0;ii<len;ii++)
+				printf(" 0x%x", font[jtoffset + offset + ii]);
 			printf("\n");
 			int x,y;
 			for (y=0;y<height;y++) {
@@ -39,11 +41,11 @@ void main() {
 				for (x=0;x<width;x++) {
 					int bit = y%8;
 					int xo = x*ybytes;
-					int yo = y/8;
+					int yo = (y)/8;
 					if ((yo+xo) >= len) {
 						printf(" ");
 					} else {
-					uint8_t val= font[4 + jtoffset + offset + yo + xo];
+					uint8_t val= font[jtoffset + offset + yo + xo];
 #if 1
 					if (val & (1<<bit))
 						printf("X");
