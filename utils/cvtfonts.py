@@ -22,8 +22,6 @@ def getletter(font,pointsize,letter,debug=0):
 	elif ord(letter[0])==34:
 		escch="\\\""
 
-	print "ESCCH IS",escch,ord(letter[0])
-
 	if letter == " ":
 		return {
 			"charwidth":int(pointsize/4)
