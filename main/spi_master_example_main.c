@@ -34,7 +34,7 @@
 
 #define DISPLAY_HEIGHT 128
 #define DISPLAY_WIDTH 296
-#define PIN_NUM_MISO 25
+#define PIN_NUM_MISO 2
 #define PIN_NUM_MOSI 23
 #define PIN_NUM_CLK  18
 #define PIN_NUM_CS   5
@@ -64,6 +64,50 @@
 //but less overhead for setting up / finishing transfers. Make sure 240 is dividable by this.
 #define PARALLEL_LINES 16
 
+//This function is called (in irq context!) just before a transmission starts. It will
+//set the D/C line to the value indicated in the user field.
+void lcd_spi_pre_transfer_callback(spi_transaction_t *t)
+{
+    int dc=(int)t->user;
+    gpio_set_level(PIN_NUM_DC, dc);
+}
+
+
+typedef struct {
+  uint16_t  	 width;
+  uint16_t  	 height;
+  uint16_t  	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */ 
+  uint8_t  	*comment;
+  uint16_t 	 pixel_data[0];
+} gimpimage_t;
+
+    spi_bus_config_t buscfg={
+        .miso_io_num=PIN_NUM_MISO,
+        .mosi_io_num=PIN_NUM_MOSI,
+        .sclk_io_num=PIN_NUM_CLK,
+        .quadwp_io_num=-1,
+        .quadhd_io_num=-1,
+        .max_transfer_sz=PARALLEL_LINES*320*2+8
+    };
+    spi_device_interface_config_t devcfg={
+#ifdef CONFIG_LCD_OVERCLOCK
+#error DONT DO
+        .clock_speed_hz=26*1000*1000,           //Clock out at 26 MHz
+#else
+        .clock_speed_hz=4*1000*1000,           //Clock out at 10 MHz
+#endif
+        .mode=0,                                //SPI mode 0
+        .spics_io_num=PIN_NUM_CS,               //CS pin
+        .queue_size=7,                          //We want to be able to queue 7 transactions at a time
+        .pre_cb=lcd_spi_pre_transfer_callback,  //Specify pre-transfer callback to handle D/C line
+    };
+
+extern gimpimage_t *mil_logo;
+int page=0;
+#define bufsz ((DISPLAY_WIDTH*DISPLAY_HEIGHT)/8)
+OLEDDisplay_t *oled;
+spi_device_handle_t spi;
+ void *db;
 /*
  The LCD needs a bunch of command/argument values to be initialized. They are stored in this struct.
 */
@@ -139,14 +183,6 @@ void lcd_data(spi_device_handle_t spi, const uint8_t *data, int len)
 #endif
     ret=spi_device_polling_transmit(spi, &t);  //Transmit!
     assert(ret==ESP_OK);            //Should have had no issues.
-}
-
-//This function is called (in irq context!) just before a transmission starts. It will
-//set the D/C line to the value indicated in the user field.
-void lcd_spi_pre_transfer_callback(spi_transaction_t *t)
-{
-    int dc=(int)t->user;
-    gpio_set_level(PIN_NUM_DC, dc);
 }
 
 uint32_t lcd_get_id(spi_device_handle_t spi)
@@ -241,14 +277,6 @@ static void paper_send_data(spi_device_handle_t spi, uint16_t *linedata, size_t 
     assert(ret==ESP_OK);
 }
 
-typedef struct {
-  uint16_t  	 width;
-  uint16_t  	 height;
-  uint16_t  	 bytes_per_pixel; /* 2:RGB16, 3:RGB, 4:RGBA */ 
-  uint8_t  	*comment;
-  uint16_t 	 pixel_data[0];
-} gimpimage_t;
-
 /* RGB 565 */
 void draw_image(gimpimage_t *srcimg, uint8_t *black, uint8_t *red,int h, int w, int x_offset, int y_offset) {
   int x,y;
@@ -294,75 +322,60 @@ void draw_image(gimpimage_t *srcimg, uint8_t *black, uint8_t *red,int h, int w, 
   }
 }
 
-gimpimage_t *mil_logo;
-void app_main(void)
+#define GPIO_INPUT_IO_UP     39
+#define GPIO_INPUT_IO_SEL     37
+#define GPIO_INPUT_IO_DOWN     38
+#define GPIO_INPUT_PIN_SEL  ((1ULL<<GPIO_INPUT_IO_UP) | (1ULL<<GPIO_INPUT_IO_DOWN) | (1ULL<<GPIO_INPUT_IO_SEL))
+#define ESP_INTR_FLAG_DEFAULT 0
+
+static xQueueHandle gpio_evt_queue = NULL;
+
+static void IRAM_ATTR gpio_isr_handler(void* arg)
 {
-    esp_err_t ret;
-    spi_device_handle_t spi;
-    spi_bus_config_t buscfg={
-        .miso_io_num=PIN_NUM_MISO,
-        .mosi_io_num=PIN_NUM_MOSI,
-        .sclk_io_num=PIN_NUM_CLK,
-        .quadwp_io_num=-1,
-        .quadhd_io_num=-1,
-        .max_transfer_sz=PARALLEL_LINES*320*2+8
-    };
-    spi_device_interface_config_t devcfg={
-#ifdef CONFIG_LCD_OVERCLOCK
-#error DONT DO
-        .clock_speed_hz=26*1000*1000,           //Clock out at 26 MHz
-#else
-        .clock_speed_hz=4*1000*1000,           //Clock out at 10 MHz
-#endif
-        .mode=0,                                //SPI mode 0
-        .spics_io_num=PIN_NUM_CS,               //CS pin
-        .queue_size=7,                          //We want to be able to queue 7 transactions at a time
-        .pre_cb=lcd_spi_pre_transfer_callback,  //Specify pre-transfer callback to handle D/C line
-    };
-    //Initialize the SPI bus
-    ret=spi_bus_initialize(LCD_HOST, &buscfg, DMA_CHAN);
-    ESP_ERROR_CHECK(ret);
-		printf("BUS INIT\n");
-    //Attach the LCD to the SPI bus
-    ret=spi_bus_add_device(LCD_HOST, &devcfg, &spi);
-		printf("DEV ADD\n");
-    ESP_ERROR_CHECK(ret);
-    //Initialize the LCD
-    lcd_init(spi);
-    //Initialize the effect displayed
-    ESP_ERROR_CHECK(ret);
+    uint32_t gpio_num = (uint32_t) arg;
+    xQueueSendFromISR(gpio_evt_queue, &gpio_num, NULL);
+}
 
-    // Brad Stuff
-    #define bufsz ((DISPLAY_WIDTH*DISPLAY_HEIGHT)/8)
-    void *db=heap_caps_malloc(bufsz, MALLOC_CAP_DMA);
-
-#if 0
-    memset(db,0xff,bufsz);
-    memset(db,0x0,bufsz/4);
-    lcd_cmd(spi, 0x10); /* Send BW data */
-    printf("Sending Data\n");
-    paper_send_data(spi, db,bufsz);
-    lcd_cmd(spi, 0x13); /* Update Display */
-    memset(db,0xff,bufsz);
-    memset(db+(bufsz/2),0,bufsz/4);
-    paper_send_data(spi, db,bufsz);
-    printf("Buffers sent\n");
-    lcd_cmd(spi, 0x12); /* Update Display */
-    printf("Refreshed Display\n");
-#endif
-
-    OLEDDisplay_t *oled = OLEDDisplay_init(DISPLAY_WIDTH,DISPLAY_HEIGHT);
-    /* To save memory - we are only allocating one buffer and using it for black and red.
-    This requires two calls to draw_image and send_data, while waiting for the first 
-    send_data to (asynchronously) finish so we can re-use the buffer. If you have the
-    memory, just use a single call to draw_image with two buffers, then send them both
-    back-to-back.
-
-    Note that if you have code that is going to modify and redraw, you must always wait for
-    last SPI transaction to finish (paper_trans_finish) before re-using the buffer!
-    */
-
+void draw_page_1(void) {
     /* Do Black */
+    char txt[20];
+    memset(db,0xff,bufsz);
+
+    OLEDDisplay_assignBuffer(oled,db);
+    OLEDDisplay_setFont(oled,oledfont_Helvetica_24);
+    OLEDDisplay_setColor(oled,BLACK);
+    OLEDDisplay_drawString(oled,180, 0, "Reset");
+    OLEDDisplay_drawString(oled,180,34,"Previous"); 
+    OLEDDisplay_drawString(oled,180,34+34,"Select"); 
+    OLEDDisplay_drawString(oled,180,32+34+34,"Next"); 
+    OLEDDisplay_drawHorizontalLine(oled,280, 12,292-280);
+    OLEDDisplay_drawHorizontalLine(oled,280, 34+12,292-280);
+    OLEDDisplay_drawHorizontalLine(oled,280, 34+34+12,292-280);
+    OLEDDisplay_drawHorizontalLine(oled,280, 34+34+34+12,292-280);
+    OLEDDisplay_setFont(oled,oledfont_AvantGarde_Book_36);
+    OLEDDisplay_drawString(oled,10,60,"Test"); 
+
+    lcd_cmd(spi, 0x10); /* Send BW data */
+    paper_send_data(spi, db,bufsz);
+    paper_trans_finish(spi); // Since we're re-using the buffer for red and black to save memory - wait for it to complete
+
+    /* Do Red */
+    memset(db,0xff,bufsz);
+    OLEDDisplay_setFont(oled,oledfont_AvantGarde_Book_36);
+    OLEDDisplay_drawString(oled,10,20,"eInk"); 
+    OLEDDisplay_setColor(oled,BLACK);
+    lcd_cmd(spi, 0x13); /* Draw Red Data data */
+    paper_send_data(spi, db,bufsz);
+    paper_trans_finish(spi); // Since we're re-using the buffer for red and black to save memory - wait for it to complete
+
+    lcd_cmd(spi, 0x12); /* Update Display data */
+    return;
+}
+void draw_page_0(void) {
+    /* Do Black */
+    char txt[20];
+    if (page == 0)
+      return draw_page_1();
     memset(db,0xff,bufsz);
    	draw_image((gimpimage_t *) &mil_logo, db, 0L,DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 0);
 
@@ -381,12 +394,116 @@ void app_main(void)
     /* Do Red */
     memset(db,0xff,bufsz);
     draw_image((gimpimage_t *) &mil_logo, 0L, db,DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 0);
-    OLEDDisplay_setFont(oled,oledfont_Bookman_Demi_24);
-    OLEDDisplay_drawString(oled,20, 90, "ABCabd123");
+    OLEDDisplay_setFont(oled,oledfont_Helvetica_12);
+    snprintf(txt,sizeof(txt)-1,"This is page %d",page);
+    OLEDDisplay_drawString(oled,20, 90, txt);
     OLEDDisplay_fillCircle(oled,210,90,25);
     OLEDDisplay_drawVerticalLine(oled,290,10,108);
     lcd_cmd(spi, 0x13); /* Draw Red Data data */
     paper_send_data(spi, db,bufsz);
+    paper_trans_finish(spi); // Since we're re-using the buffer for red and black to save memory - wait for it to complete
 
     lcd_cmd(spi, 0x12); /* Update Display data */
+    return;
+}
+
+static void gpio_task_example(void* arg)
+{
+    uint32_t io_num;
+    for(;;) {
+        if(xQueueReceive(gpio_evt_queue, &io_num, portMAX_DELAY)) {
+            printf("GPIO[%d] intr, val: %d, page: %d->", io_num, gpio_get_level(io_num),page);
+            if (gpio_get_level(io_num) == 1) {
+              if (io_num == GPIO_INPUT_IO_UP) page++;
+              if (io_num == GPIO_INPUT_IO_DOWN) page--;
+              printf("%d\n",page);
+              draw_page_0();
+            } else printf("\n");
+        }
+    }
+}
+
+void gpio_setup(void)
+{
+    gpio_config_t io_conf;
+
+    //interrupt of rising edge
+    io_conf.intr_type = GPIO_INTR_POSEDGE;
+    //bit mask of the pins
+    io_conf.pin_bit_mask = GPIO_INPUT_PIN_SEL;
+    //set as input mode
+    io_conf.mode = GPIO_MODE_INPUT;
+    //enable pull-up mode
+    io_conf.pull_up_en = 1;
+    gpio_config(&io_conf);
+
+    //change gpio intrrupt type for one pin
+    gpio_set_intr_type(GPIO_INPUT_IO_UP, GPIO_INTR_ANYEDGE);
+
+    //create a queue to handle gpio event from isr
+    gpio_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+    //start gpio task
+    xTaskCreate(gpio_task_example, "gpio_task_example", 2048, NULL, 10, NULL);
+
+    //install gpio isr service
+    gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
+    //hook isr handler for specific gpio pin
+    gpio_isr_handler_add(GPIO_INPUT_IO_UP, gpio_isr_handler, (void*) GPIO_INPUT_IO_UP);
+    //hook isr handler for specific gpio pin
+    gpio_isr_handler_add(GPIO_INPUT_IO_DOWN, gpio_isr_handler, (void*) GPIO_INPUT_IO_DOWN);
+    gpio_isr_handler_add(GPIO_INPUT_IO_SEL, gpio_isr_handler, (void*) GPIO_INPUT_IO_SEL);
+
+    //remove isr handler for gpio number.
+    //gpio_isr_handler_remove(GPIO_INPUT_IO_0);
+    //hook isr handler for specific gpio pin again
+    //gpio_isr_handler_add(GPIO_INPUT_IO_0, gpio_isr_handler, (void*) GPIO_INPUT_IO_0);
+
+    printf("Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());
+}
+
+
+void app_main(void)
+{
+    esp_err_t ret;
+    gpio_set_direction(37, GPIO_MODE_INPUT);
+    gpio_set_direction(38, GPIO_MODE_INPUT);
+    gpio_set_direction(39, GPIO_MODE_INPUT);
+    //Initialize the SPI bus
+#if 1
+    ret=spi_bus_initialize(LCD_HOST, &buscfg, DMA_CHAN);
+    ESP_ERROR_CHECK(ret);
+		printf("BUS INIT\n");
+    //Attach the LCD to the SPI bus
+    ret=spi_bus_add_device(LCD_HOST, &devcfg, &spi);
+		printf("DEV ADD\n");
+    ESP_ERROR_CHECK(ret);
+    //Initialize the LCD
+    lcd_init(spi);
+    //Initialize the effect displayed
+    ESP_ERROR_CHECK(ret);
+
+    // Brad Stuff
+#endif
+    db=heap_caps_malloc(bufsz, MALLOC_CAP_DMA);
+
+    printf("DB init as %p\n",db);
+    oled = OLEDDisplay_init(DISPLAY_WIDTH,DISPLAY_HEIGHT);
+    /* To save memory - we are only allocating one buffer and using it for black and red.
+    This requires two calls to draw_image and send_data, while waiting for the first 
+    send_data to (asynchronously) finish so we can re-use the buffer. If you have the
+    memory, just use a single call to draw_image with two buffers, then send them both
+    back-to-back.
+
+    Note that if you have code that is going to modify and redraw, you must always wait for
+    last SPI transaction to finish (paper_trans_finish) before re-using the buffer!
+    */
+
+    printf("GPIO SETup\n");
+    gpio_setup();
+    draw_page_0();
+    printf("Starting Task Sched\n");
+    //vTaskStartScheduler();
+    while(1) {
+        vTaskDelay(100000 / portTICK_RATE_MS);
+    }
 }
