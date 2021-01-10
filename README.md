@@ -11,7 +11,10 @@ Brand: Waveshare
 UPC: 614961950863
 
 
-https://www.waveshare.com/2.9inch-e-paper-module-b.htm 
-http://www.lilygo.cn/prod_view.aspx?TypeId=50031&Id=1169&FId=t3:50031:3
+[Controller specifications](https://www.waveshare.com/2.9inch-e-paper-module-b.htm)
 
+[Actual Board](http://www.lilygo.cn/prod_view.aspx?TypeId=50031&Id=1169&FId=t3:50031:3)
+
+
+[3D Printed case design for board](https://www.prusaprinters.org/prints/51606-lilygo-ttgo-t5s-29-esp32-epaper-board-case)
 ![Photo](/eInkPhoto.jpg)
